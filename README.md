@@ -608,6 +608,282 @@ curl "http://localhost:8000/search?q=tutorial&topk_frames=3000&topk_mean=100"
 - **Metadata**: Parquet format for fast loading
 - **Index**: FAISS binary format
 
+## 🧮 **TOÁN HỌC VÀ KIẾN THỨC ẨN TRONG HỆ THỐNG**
+
+### **1. 🎯 CLIP MODEL - CONTRASTIVE LEARNING**
+
+#### **A. Text Embedding Process:**
+```python
+# Quá trình chuyển đổi text thành vector 512 chiều
+def embed_text(query: str) -> np.ndarray:
+    # 1. Tokenization: "person walking" → [49406, 2533, 3788, 49407]
+    # 2. Transformer: tokens → hidden_states (512 dim)
+    # 3. Normalization: vector / ||vector||₂
+```
+
+**🔬 Toán học ẩn:**
+
+**Self-Attention Mechanism:**
+```
+Attention(Q,K,V) = softmax(QK^T/√d_k)V
+
+Trong đó:
+- Q = Query matrix (512 dim)
+- K = Key matrix (512 dim)  
+- V = Value matrix (512 dim)
+- d_k = 512 (dimension of keys)
+- √d_k = √512 ≈ 22.6 (scaling factor)
+```
+
+**Layer Normalization:**
+```
+LN(x) = γ * (x - μ)/σ + β
+
+μ = mean(x)     # Trung bình của vector
+σ = std(x)      # Độ lệch chuẩn  
+γ, β = learnable parameters
+```
+
+**L2 Normalization (Final Step):**
+```
+normalized_vector = vector / ||vector||₂
+
+||vector||₂ = √(∑ᵢ₌₁⁵¹² vᵢ²)  # Euclidean norm
+
+Kết quả: ||normalized_vector||₂ = 1.0
+```
+
+#### **B. Vision Transformer (ViT) cho Images:**
+
+**Patch Embedding:**
+```
+Image (224×224×3) → Patches (196×768)
+
+- Mỗi patch = 16×16 pixels
+- Số patches = (224/16)² = 196 patches  
+- Embedding dim = 768 → project to 512
+```
+
+**Positional Encoding:**
+```
+PE(pos,2i) = sin(pos/10000^(2i/d_model))
+PE(pos,2i+1) = cos(pos/10000^(2i/d_model))
+
+pos = position of patch (0-195)
+i = dimension index (0-255)  
+d_model = 512
+```
+
+### **2. 🎯 FAISS VECTOR SEARCH**
+
+#### **A. Cosine Similarity via Inner Product:**
+
+```python
+# Với normalized vectors: cosine_similarity = inner_product
+similarity = query_vector · frame_vector = ∑ᵢ₌₁⁵¹² qᵢ × fᵢ
+```
+
+**🔬 Toán học ẩn:**
+
+**Cosine Similarity Formula:**
+```
+cos_sim(a,b) = (a·b)/(||a|| × ||b||)
+
+Vì vectors đã normalized (||a|| = ||b|| = 1):
+cos_sim(a,b) = a·b = inner_product(a,b)
+
+Kết quả ∈ [-1, 1]:
+- 1.0 = hoàn toàn giống nhau
+- 0.0 = không liên quan  
+- -1.0 = hoàn toàn đối lập
+```
+
+**FAISS IndexFlatIP Search:**
+```
+Brute Force Algorithm:
+for each frame_vector in database:
+    score = query_vector · frame_vector  
+    if score > threshold:
+        add (score, frame_index) to results
+
+Sort results by score (descending)
+Return top_k results
+
+Time Complexity: O(N × D)  
+N = số frames (~14,402)
+D = embedding dimension (512)
+```
+
+#### **B. Memory-Mapped Storage:**
+
+```python
+# Float16 precision cho tiết kiệm memory
+mem = np.memmap(path, dtype='float16', shape=(N, 512))
+```
+
+**🔬 Toán học ẩn:**
+
+**Float16 vs Float32:**
+```
+Float16: 1 bit sign + 5 bits exponent + 10 bits mantissa
+- Range: ±6.55×10⁴
+- Precision: ~3-4 decimal digits
+- Memory: N × 512 × 2 bytes = N × 1KB per frame
+
+Float32: 1 bit sign + 8 bits exponent + 23 bits mantissa  
+- Range: ±3.4×10³⁸
+- Precision: ~6-7 decimal digits
+- Memory: N × 512 × 4 bytes = N × 2KB per frame
+
+Quantization Error: |float32_value - float16_value| < 0.1%
+```
+
+### **3. 🎯 SCORE AGGREGATION & RANKING**
+
+#### **A. Video-Level Scoring:**
+
+```python
+# Max pooling strategy
+video_score = max(frame_scores)
+= max{cos_sim(query, frame₁), cos_sim(query, frame₂), ...}
+```
+
+**🔬 Alternative Aggregation Methods:**
+
+**Mean Pooling:**
+```
+video_score = (1/n) × ∑ᵢ₌₁ⁿ cos_sim(query, frameᵢ)
+```
+
+**Weighted Average:**
+```
+video_score = ∑ᵢ₌₁ⁿ wᵢ × cos_sim(query, frameᵢ)
+where ∑wᵢ = 1
+```
+
+**Top-K Mean (Advanced Server):**
+```python
+# topk_mean = 50 (parameter)
+sorted_scores = sorted(frame_scores, reverse=True)
+top_k_scores = sorted_scores[:50]
+video_score = mean(top_k_scores)
+```
+
+#### **B. Statistical Interpretation:**
+
+**Score Ranges:**
+```
+Score ≥ 0.9:  Excellent match (>90% similarity)
+Score 0.7-0.9: Good match (70-90% similarity)  
+Score 0.5-0.7: Moderate match (50-70% similarity)
+Score < 0.5:   Poor match (<50% similarity)
+```
+
+### **4. 🎯 BATCH PROCESSING & OPTIMIZATION**
+
+#### **A. GPU Memory Management:**
+
+```python
+# Batch processing để tối ưu GPU
+BATCH_SIZE = 64  # Tùy thuộc GPU memory
+```
+
+**🔬 Memory Calculations:**
+
+**Single Image Processing:**
+```
+Input: 224×224×3×4 bytes = 600KB (float32)
+Intermediate activations: ~50-100MB per image
+Peak GPU memory: ~2-4GB for CLIP-ViT-Base
+```
+
+**Batch Processing:**
+```
+Batch of 64 images:
+- Input memory: 64 × 600KB = 38.4MB  
+- Activation memory: 64 × 100MB = 6.4GB
+- Total GPU memory needed: ~8-10GB
+```
+
+#### **B. Numerical Stability:**
+
+**Normalization with Epsilon:**
+```python
+# Tránh division by zero
+normalized = vector / (||vector||₂ + ε)
+where ε = 1e-12
+```
+
+**Gradient Flow:**
+```
+∂Loss/∂vector = ∂Loss/∂normalized × ∂normalized/∂vector
+
+∂normalized/∂vector = (I - normalized⊗normalized) / ||vector||
+```
+
+### **5. 🎯 ADVANCED CONCEPTS**
+
+#### **A. Contrastive Learning (CLIP Training):**
+
+**Contrastive Loss Function:**
+```
+L = -log(exp(sim(text,image⁺)/τ) / ∑ⱼ exp(sim(text,imageⱼ)/τ))
+
+τ = temperature parameter = 0.07
+image⁺ = positive pair (correct image for text)
+imageⱼ = all images in batch (including negatives)
+```
+
+**Symmetrical Training:**
+```
+Total_Loss = L(text→image) + L(image→text)
+```
+
+#### **B. Dimensional Analysis:**
+
+**512-Dimensional Embedding Space:**
+```
+Information capacity: 2^(512×16) possible vectors (float16)
+≈ 10^2466 possible embeddings
+
+Unit sphere S^511:
+- Most vectors are nearly orthogonal
+- Average cosine similarity ≈ 0 for random vectors
+- Meaningful clusters form in high-density regions
+```
+
+### **6. 🎯 PERFORMANCE METRICS**
+
+#### **A. Search Performance:**
+
+```
+Query Processing: ~50-100ms (CPU) / ~10-20ms (GPU)
+FAISS Search: ~5-15ms for 14K frames
+Total Response: ~100-200ms per query
+
+Throughput: ~10-50 queries/second (depending on hardware)
+```
+
+#### **B. Memory Usage:**
+
+```
+Metadata (meta.parquet): ~1-2MB  
+Embeddings (14K×512×2): ~14.8MB
+FAISS Index: ~15-20MB
+Model weights: ~150MB (CLIP)
+Runtime memory: 1-4GB (Simple vs Advanced)
+```
+
+### **📊 Tóm Tắt Công Thức Chính:**
+
+1. **Text/Image → Embedding**: `CLIP(input) → normalize(vector₅₁₂)`
+2. **Similarity Search**: `score = query · frame` (inner product)  
+3. **Video Ranking**: `video_score = max(frame_scores)` or `mean(top_k)`
+4. **Memory Efficiency**: `float16` storage, memory mapping
+5. **Batch Processing**: Parallel GPU computation for speed
+
+**Hệ thống kết hợp Linear Algebra, Deep Learning, Information Retrieval, và Computer Vision để tạo ra AI search engine mạnh mẽ!**
+
 ## 📝 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
