@@ -126,7 +126,8 @@ start_server_simple.bat
 
 ### ⚡ Quick Start (Cho Người Đã Biết)
 ```bash
-git clone <repo-url> && cd ai-video-search
+git clone https://gitlab.com/404-not-found-2/ai-challenge-404-not-found-2.git
+cd ai-challenge-404-not-found-2
 python -m venv .venv && .venv\Scripts\activate  
 pip install -r requirements.txt
 # Đặt videos vào videos/
