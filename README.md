@@ -71,7 +71,31 @@ videos/
 └── video3.mp4
 ```
 
-## 🏃‍♂️ Quick Start
+## 🚀 Quick Start Options
+
+### Option 1: Automated Setup (Recommended)
+For complete setup from scratch:
+```bash
+# Windows
+.\setup_and_run.bat
+
+# Linux/Mac
+chmod +x setup_and_run.sh
+./setup_and_run.sh
+```
+
+### Option 2: Quick Server Start
+If you've already set up the system:
+```bash
+# Windows
+.\start_server.bat
+
+# Linux/Mac
+chmod +x start_server.sh
+./start_server.sh
+```
+
+### Option 3: Manual Setup
 
 ### Step 1: Extract Video Frames
 ```bash
@@ -111,10 +135,47 @@ python scripts/build_faiss.py
 python -m uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Step 6: Test the System
-Open your browser and go to:
-- **API Documentation**: http://localhost:8000/docs
+## ✅ Verify Installation
+
+After starting the server, you should see:
+```
+INFO:     Application startup complete.
+```
+
+Then test these endpoints:
+- **Health Check**: http://localhost:8000/health
+- **API Documentation**: http://localhost:8000/docs  
+- **Root Info**: http://localhost:8000/
 - **Search Example**: http://localhost:8000/search?q=coding%20tutorial
+
+## 📁 Project Files
+
+After setup, your project structure should look like:
+```
+├── api/
+│   └── app.py              # FastAPI server
+├── scripts/
+│   ├── encode_siglip.py    # AI embedding generation
+│   ├── build_faiss.py      # Vector index creation
+│   └── text_embed.py       # Text embedding utilities
+├── index/
+│   ├── meta.parquet        # Frame metadata
+│   ├── embeddings/         # AI-generated vectors
+│   │   └── frames.f16.mmap
+│   └── faiss/              # Search indexes
+│       └── ip_flat.index
+├── frames/                 # Extracted video frames
+│   ├── video1/
+│   │   ├── frame_000001.jpg
+│   │   ├── frame_000002.jpg
+│   │   └── ...
+│   └── video2/
+├── videos/                 # Source video files
+├── build_meta.py          # Metadata generation script
+├── start_server.bat       # Windows server start script
+├── setup_and_run.bat      # Windows full setup script
+└── README.md              # This documentation
+```
 
 ## 📚 How It Works
 

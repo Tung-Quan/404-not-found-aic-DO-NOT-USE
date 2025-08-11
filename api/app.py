@@ -56,6 +56,21 @@ class SearchResponse(BaseModel):
 
 app = FastAPI(title='Text→Video Retrieval API')
 
+@app.get('/health')
+def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "message": "AI Video Search API is running"}
+
+@app.get('/')
+def root():
+    """Root endpoint with basic info"""
+    return {
+        "message": "AI Video Search API",
+        "docs": "/docs",
+        "health": "/health",
+        "search": "/search?q=your_query"
+    }
+
 @app.get('/search', response_model=SearchResponse)
 def search(q: str,
            clip_weight: float = Query(1.0, ge=0.0),
