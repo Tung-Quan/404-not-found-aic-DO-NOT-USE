@@ -47,12 +47,24 @@ class Hit(BaseModel):
     best_frame_path: str = None
     best_frame_timestamp: float = None
 
+class FrameHit(BaseModel):
+    frame_path: str
+    video_id: str
+    timestamp: float
+    score: float
+    video_path: str
+
 class SearchResponse(BaseModel):
     query: str
     clip_weight: float
     query_weight: float
     topk_mean: int
     results: List[Hit]
+
+class FrameSearchResponse(BaseModel):
+    query: str
+    total_frames_searched: int
+    results: List[FrameHit]
 
 app = FastAPI(title='Text→Video Retrieval API')
 
@@ -68,7 +80,8 @@ def root():
         "message": "AI Video Search API",
         "docs": "/docs",
         "health": "/health",
-        "search": "/search?q=your_query"
+        "search": "/search?q=your_query",
+        "search_frames": "/search_frames?q=your_query&top_frames=5"
     }
 
 @app.get('/search', response_model=SearchResponse)
@@ -162,6 +175,40 @@ def search(q: str,
             }
             for vid, score, n, video_path, best_frame in combined[:50]
         ]
+    }
+
+@app.get('/search_frames', response_model=FrameSearchResponse)
+def search_frames(q: str,
+                 top_frames: int = Query(5, ge=1, le=100)):
+    """
+    Search for individual frames closest to query.
+    Returns top N frames from potentially different videos.
+    """
+    # Embed query
+    qv = embed_text(q)[None, :]
+
+    # Search for top frames
+    scores, idx = INDEX.search(qv, top_frames)
+    scores, idx = scores[0], idx[0]
+
+    # Build frame results
+    frame_results = []
+    for score, frame_idx in zip(scores, idx):
+        row = META.iloc[frame_idx]
+        video_id = row['video_id']
+        
+        frame_results.append({
+            'frame_path': row['frame_path'],
+            'video_id': video_id,
+            'timestamp': float(row['ts']),
+            'score': float(score),
+            'video_path': f"videos/{video_id}"
+        })
+
+    return {
+        'query': q,
+        'total_frames_searched': top_frames,
+        'results': frame_results
     }
 
 # --- File serving endpoints

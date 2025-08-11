@@ -213,13 +213,26 @@ Videos → Frame Extraction → AI Embeddings → Vector Index → Search API
 
 ## 🔧 API Reference
 
-### Search Endpoint
+### Video Search Endpoint (Grouped by Video)
 
 ```http
 GET /search?q={query}&clip_weight={float}&query_weight={float}&topk_mean={int}&topk_frames={int}
 ```
 
-### Parameters Explained
+### Frame Search Endpoint (Individual Frames) 🆕
+
+```http
+GET /search_frames?q={query}&top_frames={int}
+```
+
+Returns the top N individual frames closest to your query, potentially from different videos or the same video.
+
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| `q` | string | **required** | - | Text query to search for |
+| `top_frames` | int | 5 | 1-100 | Number of top frames to return |
+
+### Video Search Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
@@ -278,6 +291,31 @@ topk_frames=15000 # Comprehensive: Full coverage → Slower but thorough
 }
 ```
 
+### Frame Search Response Format 🆕
+
+```json
+{
+  "query": "React components",
+  "total_frames_searched": 5,
+  "results": [
+    {
+      "frame_path": "frames/React_Tutorial/frame_000156.jpg",
+      "video_id": "React_Tutorial", 
+      "timestamp": 156.0,
+      "score": 0.89,
+      "video_path": "videos/React_Tutorial"
+    },
+    {
+      "frame_path": "frames/JavaScript_Guide/frame_000245.jpg",
+      "video_id": "JavaScript_Guide",
+      "timestamp": 245.0, 
+      "score": 0.87,
+      "video_path": "videos/JavaScript_Guide"
+    }
+  ]
+}
+```
+
 ### Additional Endpoints
 
 ```http
@@ -296,7 +334,19 @@ GET /docs
 
 ## 💡 Usage Examples
 
-### Search for Programming Content
+### Search for Individual Frames 🆕
+```bash
+# Find 5 most relevant frames (can be from different videos)
+curl "http://localhost:8000/search_frames?q=React components&top_frames=5"
+
+# Find 10 frames about Python programming
+curl "http://localhost:8000/search_frames?q=Python tutorial&top_frames=10"
+
+# Quick search for coding content
+curl "http://localhost:8000/search_frames?q=coding&top_frames=3"
+```
+
+### Search for Programming Content (Grouped by Video)
 ```bash
 curl "http://localhost:8000/search?q=Python programming tutorial"
 curl "http://localhost:8000/search?q=React components and hooks"
