@@ -39,6 +39,11 @@ def embed_text(q: str) -> np.ndarray:
         return out[0].detach().cpu().numpy().astype('float32')
 
 # --- API schema
+class FrameDetail(BaseModel):
+    frame_path: str
+    timestamp: float
+    score: float
+
 class Hit(BaseModel):
     video_id: str
     video_path: str
@@ -46,6 +51,7 @@ class Hit(BaseModel):
     frames_used: int
     best_frame_path: str = None
     best_frame_timestamp: float = None
+    top_frames: List[FrameDetail] = []
 
 class FrameHit(BaseModel):
     frame_path: str
@@ -148,14 +154,26 @@ def search(q: str,
     for vid in vids:
         s = clip_weight * d_dense.get(vid, 0.0) + query_weight * d_lex.get(vid, 0.0)
         
-        # Get best frame for this video
+        # Get all frames for this video and sort by score
         frames_info = per_video_frames.get(vid, [])
-        best_frame = max(frames_info, key=lambda x: x['score']) if frames_info else None
+        frames_info_sorted = sorted(frames_info, key=lambda x: x['score'], reverse=True)
+        
+        # Get best frame
+        best_frame = frames_info_sorted[0] if frames_info_sorted else None
+        
+        # Get top 5 frames for this video
+        top_5_frames = []
+        for frame in frames_info_sorted[:5]:
+            top_5_frames.append({
+                'frame_path': frame['frame_path'],
+                'timestamp': frame['timestamp'],
+                'score': frame['score']
+            })
         
         # Construct video path
         video_path = f"videos/{vid}"
         
-        combined.append((vid, s, len(per_video_dense.get(vid, [])), video_path, best_frame))
+        combined.append((vid, s, len(per_video_dense.get(vid, [])), video_path, best_frame, top_5_frames))
 
     combined.sort(key=lambda x: x[1], reverse=True)
 
@@ -171,9 +189,10 @@ def search(q: str,
                 'score': float(score), 
                 'frames_used': n,
                 'best_frame_path': best_frame['frame_path'] if best_frame else None,
-                'best_frame_timestamp': best_frame['timestamp'] if best_frame else None
+                'best_frame_timestamp': best_frame['timestamp'] if best_frame else None,
+                'top_frames': top_5_frames
             }
-            for vid, score, n, video_path, best_frame in combined[:50]
+            for vid, score, n, video_path, best_frame, top_5_frames in combined[:50]
         ]
     }
 

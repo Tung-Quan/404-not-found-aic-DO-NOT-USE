@@ -270,7 +270,7 @@ topk_frames=8000  # Balanced: Good for 7000+ frame videos → Recommended
 topk_frames=15000 # Comprehensive: Full coverage → Slower but thorough
 ```
 
-### Response Format
+### Video Search Response Format
 
 ```json
 {
@@ -285,7 +285,34 @@ topk_frames=15000 # Comprehensive: Full coverage → Slower but thorough
       "score": 0.87,
       "frames_used": 25,
       "best_frame_path": "frames/React_Tutorial_Video/frame_000156.jpg",
-      "best_frame_timestamp": 156.0
+      "best_frame_timestamp": 156.0,
+      "top_frames": [
+        {
+          "frame_path": "frames/React_Tutorial_Video/frame_000156.jpg",
+          "timestamp": 156.0,
+          "score": 0.89
+        },
+        {
+          "frame_path": "frames/React_Tutorial_Video/frame_000157.jpg",
+          "timestamp": 157.0,
+          "score": 0.87
+        },
+        {
+          "frame_path": "frames/React_Tutorial_Video/frame_000158.jpg",
+          "timestamp": 158.0,
+          "score": 0.85
+        },
+        {
+          "frame_path": "frames/React_Tutorial_Video/frame_000159.jpg",
+          "timestamp": 159.0,
+          "score": 0.83
+        },
+        {
+          "frame_path": "frames/React_Tutorial_Video/frame_000160.jpg",
+          "timestamp": 160.0,
+          "score": 0.81
+        }
+      ]
     }
   ]
 }
