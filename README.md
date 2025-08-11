@@ -190,6 +190,7 @@ Get-ChildItem videos -File | ForEach-Object {
 # Linux/Mac Bash
 for video in videos/*; do
   name=$(basename "$video" | sed 's/\.[^.]*$//')
+```
 ## 📁 Cấu Trúc Project
 
 ```
