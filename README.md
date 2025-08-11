@@ -2,6 +2,8 @@
 
 Hệ thống tìm kiếm video thông minh sử dụng AI để tìm những khoảnh khắc cụ thể trong video dựa trên mô tả văn bản. Sử dụng mô hình CLIP để hiểu cả nội dung hình ảnh và văn bản.
 
+> ✅ **Portable**: Tất cả batch files sử dụng đường dẫn tương đối - hoạt động trên mọi máy tính!
+
 ## ⚡ Khởi Động Nhanh
 
 ### 1. Server Tối Ưu Memory (Khuyến Nghị) 

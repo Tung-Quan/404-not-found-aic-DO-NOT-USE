@@ -22,7 +22,8 @@ echo Press Ctrl+C to stop the server
 echo =====================================================
 echo.
 
-cd /d "E:\Disk D\BK LEARNING\LEARNING\react\Project"
+REM Change to the directory where the batch file is located
+cd /d "%~dp0"
 
 REM Check if virtual environment exists
 if not exist ".venv\Scripts\activate.bat" (
