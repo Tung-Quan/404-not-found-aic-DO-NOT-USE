@@ -1,6 +1,10 @@
-frames/
+# Video and Frame Content (but keep folders)
+frames/*
+!frames/.gitkeep
+videos/*
+!videos/.gitkeep
+
 .vscode/
-videos/
 .venv/
 __pycache__/
 *.pyc
