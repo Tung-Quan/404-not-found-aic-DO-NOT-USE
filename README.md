@@ -226,8 +226,8 @@ GET /search?q={query}&clip_weight={float}&query_weight={float}&topk_mean={int}&t
 | `q` | string | **required** | - | Text query to search for |
 | `clip_weight` | float | 1.0 | 0.0+ | Weight for semantic (CLIP) search |
 | `query_weight` | float | 0.0 | 0.0+ | Weight for keyword (TF-IDF) search |
-| `topk_mean` | int | 50 | 1-1000 | Number of top frames to average per video |
-| `topk_frames` | int | 2000 | 10-10000 | Initial frames retrieved from index |
+| `topk_mean` | int | 200 | 1-2000 | Number of top frames to average per video |
+| `topk_frames` | int | 8000 | 100-50000 | Initial frames retrieved from index |
 
 ### Parameter Effects
 
@@ -245,16 +245,16 @@ clip_weight=0.0, query_weight=1.0
 
 #### `topk_mean` (Precision Control)
 ```bash
-topk_mean=10   # Strict: Only top 10 frames → Higher precision
-topk_mean=50   # Balanced: Top 50 frames → Good balance  
-topk_mean=100  # Lenient: Top 100 frames → Higher recall
+topk_mean=50   # Conservative: Top 50 frames → Basic precision
+topk_mean=200  # Balanced: Top 200 frames → Good for 7000+ frame videos  
+topk_mean=500  # Comprehensive: Top 500 frames → Maximum recall
 ```
 
 #### `topk_frames` (Search Scope)
 ```bash
-topk_frames=500   # Fast: Limited scope → Quick results
-topk_frames=2000  # Balanced: Good coverage → Recommended
-topk_frames=5000  # Comprehensive: Full coverage → Slower but thorough
+topk_frames=2000  # Fast: Limited scope → Quick results
+topk_frames=8000  # Balanced: Good for 7000+ frame videos → Recommended
+topk_frames=15000 # Comprehensive: Full coverage → Slower but thorough
 ```
 
 ### Response Format
@@ -305,11 +305,14 @@ curl "http://localhost:8000/search?q=machine learning explanation"
 
 ### Adjust Search Behavior
 ```bash
-# Strict search (only top matches)
-curl "http://localhost:8000/search?q=coding tutorial&topk_mean=10"
+# Optimized for 7000+ frame videos (recommended)
+curl "http://localhost:8000/search?q=coding tutorial&topk_mean=200&topk_frames=8000"
 
-# Broad search (include more content)  
-curl "http://localhost:8000/search?q=coding tutorial&topk_mean=100"
+# High precision search (strict matching)
+curl "http://localhost:8000/search?q=coding tutorial&topk_mean=100&topk_frames=5000"
+
+# Comprehensive search (maximum coverage)
+curl "http://localhost:8000/search?q=coding tutorial&topk_mean=500&topk_frames=15000"
 
 # Combine semantic + keyword search
 curl "http://localhost:8000/search?q=React&clip_weight=0.8&query_weight=0.2"
@@ -382,21 +385,26 @@ pip install --upgrade torch transformers faiss-cpu
 
 **4. Slow search performance**
 ```bash
-# Reduce topk_frames parameter
-curl "http://localhost:8000/search?q=tutorial&topk_frames=500"
+# For 7000+ frame videos, use optimized parameters
+curl "http://localhost:8000/search?q=tutorial&topk_frames=5000&topk_mean=150"
+
+# For faster results with good accuracy
+curl "http://localhost:8000/search?q=tutorial&topk_frames=3000&topk_mean=100"
 ```
 
 ### Performance Tuning
 
-**For Large Video Collections (100+ videos):**
-- Increase `topk_frames` to 5000+
+**For Large Video Collections (7000+ frames per video):**
+- Use `topk_frames=8000-15000` for comprehensive search
+- Set `topk_mean=200-500` for balanced precision/recall
 - Use GPU if available (`DEVICE = 'cuda'`)
 - Consider using `faiss-gpu` instead of `faiss-cpu`
 
 **For Real-time Applications:**
-- Reduce `topk_frames` to 500-1000
-- Lower `topk_mean` to 20-30
+- Use `topk_frames=3000-5000` for faster response
+- Set `topk_mean=100-200` for good accuracy
 - Cache frequent queries
+- Use smaller batch sizes during indexing
 
 ## 🔬 Technical Details
 

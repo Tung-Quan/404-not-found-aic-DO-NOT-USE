@@ -75,8 +75,8 @@ def root():
 def search(q: str,
            clip_weight: float = Query(1.0, ge=0.0),
            query_weight: float = Query(0.0, ge=0.0),
-           topk_mean: int = Query(50, ge=1, le=1000),
-           topk_frames: int = Query(2000, ge=10, le=10000)):
+           topk_mean: int = Query(200, ge=1, le=2000),
+           topk_frames: int = Query(8000, ge=100, le=50000)):
     # Embed query
     qv = embed_text(q)[None, :]
 
