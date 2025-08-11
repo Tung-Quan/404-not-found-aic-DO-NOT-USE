@@ -1,49 +1,66 @@
 # 🎬 AI Video Search System
 
-An intelligent video search system that uses AI to find specific moments in videos based on text descriptions. The system uses CLIP (Contrastive Language-Image Pre-training) model to understand both text queries and video content for semantic search.
+Hệ thống tìm kiếm video thông minh sử dụng AI để tìm những khoảnh khắc cụ thể trong video dựa trên mô tả văn bản. Sử dụng mô hình CLIP để hiểu cả nội dung hình ảnh và văn bản.
 
-## 🚀 Features
+## ⚡ Khởi Động Nhanh
 
-- **Semantic Video Search**: Find videos using natural language descriptions
-- **Frame-level Precision**: Locate exact moments within videos with timestamp accuracy
-- **CLIP-powered AI**: Uses OpenAI's CLIP model for understanding visual content
-- **Fast Vector Search**: FAISS-based indexing for quick retrieval
-- **RESTful API**: Easy-to-use FastAPI endpoints
-- **Multiple Search Modes**: Semantic search + optional keyword-based search
-
-## 📋 Prerequisites
-
-- **Python 3.8+**
-- **FFmpeg** (for video processing)
-- **8GB+ RAM** (for AI models)
-- **Git**
-
-### Windows Installation:
+### 1. Server Tối Ưu Memory (Khuyến Nghị) 
 ```bash
-# Install FFmpeg via chocolatey
+# Chạy server ổn định, ít tốn memory
+start_server_simple.bat
+
+# Truy cập: http://localhost:8001/docs
+```
+
+### 2. Server Đầy Đủ Tính Năng
+```bash  
+# Chạy server với tất cả tính năng (cần nhiều RAM)
+start_server_advanced.bat
+
+# Truy cập: http://localhost:8000/docs
+```
+
+### 3. Setup Từ Đầu (Nếu Chưa Có Dữ Liệu)
+```bash
+# Xử lý video, tạo index, khởi động server
+setup_and_run.bat
+```
+
+## 🎯 So Sánh 2 Phiên Bản
+
+| Tính Năng | Simple (Port 8001) | Advanced (Port 8000) |
+|-----------|-------------------|---------------------|
+| **Memory** | ⚡ Thấp (~1GB) | 🔥 Cao (~4GB+) |
+| **Khởi động** | 🚀 Nhanh (15s) | 🐌 Chậm (60s) |
+| **Ổn định** | ✅ Rất ổn định | ⚠️ Có thể lỗi memory |
+| **Tìm frame** | ✅ 5 frame tốt nhất | ✅ 5 frame tốt nhất |
+| **Tìm video** | ⚡ Tìm cơ bản | 🔥 Tìm nâng cao + TF-IDF |
+| **Top frames/video** | ❌ Không | ✅ Top 5 frames mỗi video |
+| **Phù hợp** | Sử dụng hàng ngày | Development/Testing |
+
+## 📋 Yêu Cầu Hệ Thống
+
+- **Python 3.8+** 
+- **FFmpeg** (xử lý video)
+- **4GB+ RAM** (Simple) / **8GB+ RAM** (Advanced)
+
+### Cài Đặt FFmpeg:
+```bash
+# Windows (với Chocolatey)
 choco install ffmpeg
 
-# Or download from: https://ffmpeg.org/download.html
+# Hoặc tải từ: https://ffmpeg.org/download.html
 ```
 
-### Linux/Mac Installation:
-```bash
-# Ubuntu/Debian
-sudo apt install ffmpeg
-
-# macOS
-brew install ffmpeg
-```
-
-## 🛠️ Installation & Setup
+## 🛠️ Cài Đặt Chi Tiết
 
 ### 1. Clone Repository
 ```bash
-git clone https://gitlab.com/404-not-found-2/ai-challenge-404-not-found-2.git
-cd ai-challenge-404-not-found-2
+git clone <your-repo-url>
+cd ai-video-search
 ```
 
-### 2. Create Virtual Environment
+### 2. Tạo Virtual Environment
 ```bash
 # Windows
 python -m venv .venv
@@ -54,7 +71,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 3. Install Dependencies
+### 3. Cài Đặt Dependencies
 ```bash
 pip install torch torchvision transformers
 pip install faiss-cpu pandas pyarrow
@@ -62,8 +79,8 @@ pip install fastapi uvicorn scikit-learn
 pip install pillow tqdm
 ```
 
-### 4. Prepare Video Files
-Place your video files (.mp4, .avi, .mov) in the `videos/` directory:
+### 4. Chuẩn Bị Video Files
+Đặt file video (.mp4, .avi, .mov) vào thư mục `videos/`:
 ```
 videos/
 ├── video1.mp4
@@ -71,31 +88,48 @@ videos/
 └── video3.mp4
 ```
 
-## 🚀 Quick Start Options
+## 🌐 API Endpoints
 
-### Option 1: Automated Setup (Recommended)
-For complete setup from scratch:
+### Server Simple (Port 8001)
+- `GET /docs` - 📚 API Documentation  
+- `GET /health` - ✅ Trạng thái server
+- `GET /search_frames?q=query` - 🔍 Tìm frame riêng lẻ
+- `GET /search_simple?q=query` - 🎯 Tìm video cơ bản
+
+### Server Advanced (Port 8000)  
+- `GET /docs` - 📚 API Documentation
+- `GET /health` - ✅ Trạng thái server
+- `GET /search?q=query` - 🔥 Tìm video nâng cao + aggregation
+- `GET /search_frames?q=query` - 🔍 Tìm frame riêng lẻ
+
+## 💡 Ví Dụ Sử Dụng
+
+### Tìm Frame
 ```bash
-# Windows
-.\setup_and_run.bat
-
-# Linux/Mac
-chmod +x setup_and_run.sh
-./setup_and_run.sh
+# Tìm 5 frame gần nhất với query
+curl "http://localhost:8001/search_frames?q=person walking&top_frames=5"
 ```
 
-### Option 2: Quick Server Start
-If you've already set up the system:
+### Tìm Video (Advanced)
 ```bash
-# Windows
-.\start_server.bat
-
-# Linux/Mac
-chmod +x start_server.sh
-./start_server.sh
+# Tìm video với top 5 frames tốt nhất mỗi video
+curl "http://localhost:8000/search?q=car driving&clip_weight=0.8"
 ```
 
-### Option 3: Manual Setup
+## 🆘 Xử Lý Lỗi
+
+| Lỗi | Nguyên Nhân | Giải Pháp |
+|-----|-------------|-----------|
+| **Memory Error** | Không đủ RAM cho Advanced server | Dùng `start_server_simple.bat` |
+| **Port Conflict** | Port đã được sử dụng | Thay đổi port trong file .bat |
+| **No Videos Found** | Không có video trong thư mục | Đặt file .mp4 vào `videos/` |
+| **Missing Index** | Chưa xử lý video | Chạy `setup_and_run.bat` |
+| **FFmpeg Error** | Chưa cài FFmpeg | Cài FFmpeg từ ffmpeg.org |
+- `GET /search?q=query` - Advanced video search with aggregation
+- `GET /search_frames?q=query` - Individual frame search
+- `GET /docs` - API documentation
+
+## 🛠️ Manual Setup (If Needed)
 
 ### Step 1: Extract Video Frames
 ```bash
@@ -110,60 +144,56 @@ Get-ChildItem videos -File | ForEach-Object {
 # Linux/Mac Bash
 for video in videos/*; do
   name=$(basename "$video" | sed 's/\.[^.]*$//')
-  mkdir -p "frames/$name"
-  ffmpeg -y -i "$video" -vf fps=1 "frames/$name/frame_%06d.jpg"
-done
+## 📁 Cấu Trúc Project
+
+```
+📦 AI Video Search
+├── 🚀 start_server_simple.bat     # Server tối ưu memory  
+├── 🔥 start_server_advanced.bat   # Server đầy đủ tính năng
+├── 🎛️ start_server.bat            # Menu lựa chọn
+├── 🛠️ setup_and_run.bat           # Setup từ đầu
+├── 📂 api/
+│   ├── app_simple.py              # Code server tối ưu
+│   └── app.py                     # Code server advanced
+├── 📂 videos/                     # Đặt file video vào đây
+├── 📂 frames/                     # Frame được extract
+├── 📂 index/                      # Metadata và indexes
+│   ├── meta.parquet              # Thông tin frames
+│   ├── embeddings/               # AI vectors
+│   └── faiss/                    # Search index
+└── 📚 README.md                  # File này
 ```
 
-### Step 2: Build Metadata Index
-```bash
-python build_meta.py
+## ✅ Kiểm Tra Hoạt Động
+
+Sau khi khởi động server, bạn sẽ thấy:
+```
+✅ API server ready!
+🔧 Memory optimized version loaded  
+📊 Ready to search 14402 frames
 ```
 
-### Step 3: Generate AI Embeddings
-```bash
-python scripts/encode_siglip.py
-```
+Test các endpoints:
+- **Health Check**: http://localhost:8001/health
+- **API Docs**: http://localhost:8001/docs  
+- **Tìm Frame**: http://localhost:8001/search_frames?q=person walking
 
-### Step 4: Build Search Index
-```bash
-python scripts/build_faiss.py
-```
+## � Liên Kết
 
-### Step 5: Start API Server
-```bash
-python -m uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
-```
+- **FastAPI Documentation**: https://fastapi.tiangolo.com/
+- **CLIP Model**: https://github.com/openai/CLIP
+- **FAISS**: https://github.com/facebookresearch/faiss
 
-## ✅ Verify Installation
+## 📞 Hỗ Trợ
 
-After starting the server, you should see:
-```
-INFO:     Application startup complete.
-```
+Nếu gặp vấn đề, hãy:
+1. Kiểm tra file `QUICK_START.md` 
+2. Dùng server Simple thay vì Advanced
+3. Đảm bảo đã cài FFmpeg
+4. Kiểm tra log lỗi trong terminal
 
-Then test these endpoints:
-- **Health Check**: http://localhost:8000/health
-- **API Documentation**: http://localhost:8000/docs  
-- **Root Info**: http://localhost:8000/
-- **Search Example**: http://localhost:8000/search?q=coding%20tutorial
-
-## 📁 Project Files
-
-After setup, your project structure should look like:
-```
-├── api/
-│   └── app.py              # FastAPI server
-├── scripts/
-│   ├── encode_siglip.py    # AI embedding generation
-│   ├── build_faiss.py      # Vector index creation
-│   └── text_embed.py       # Text embedding utilities
-├── index/
-│   ├── meta.parquet        # Frame metadata
-│   ├── embeddings/         # AI-generated vectors
-│   │   └── frames.f16.mmap
-│   └── faiss/              # Search indexes
-│       └── ip_flat.index
+---
+**Made with ❤️ using AI and CLIP** 🤖
 ├── frames/                 # Extracted video frames
 │   ├── video1/
 │   │   ├── frame_000001.jpg

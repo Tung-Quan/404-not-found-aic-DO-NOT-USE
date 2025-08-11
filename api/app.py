@@ -8,11 +8,15 @@ import pickle
 from typing import List
 import os
 
-# --- Load metadata & vectors
+# --- Load metadata & vectors (lazy loading for memory efficiency)
 META = pd.read_parquet('index/meta.parquet')
 N = len(META)
-VEC = np.memmap('index/embeddings/frames.f16.mmap', dtype='float16', mode='r', shape=(N, 512)).astype('float32')
-faiss.normalize_L2(VEC)
+
+# Don't load vectors into memory immediately - use lazy loading
+VEC_PATH = 'index/embeddings/frames.f16.mmap'
+VEC_SHAPE = (N, 512)
+
+# Load FAISS index (this is smaller and safer)
 INDEX = faiss.read_index('index/faiss/ip_flat.index')
 
 # --- Optional TF-IDF (per video)
@@ -37,6 +41,18 @@ def embed_text(q: str) -> np.ndarray:
         out = MODEL.get_text_features(**ins)
         out = torch.nn.functional.normalize(out, dim=-1)
         return out[0].detach().cpu().numpy().astype('float32')
+
+def load_vectors_chunk(start_idx: int, end_idx: int) -> np.ndarray:
+    """Load a chunk of vectors to avoid memory issues."""
+    try:
+        # Load only the needed chunk
+        chunk_size = end_idx - start_idx
+        vec_chunk = np.memmap(VEC_PATH, dtype='float16', mode='r', 
+                             shape=(N, 512), offset=start_idx * 512 * 2)[start_idx:end_idx]
+        return vec_chunk.astype('float32')
+    except Exception as e:
+        print(f"Warning: Could not load vector chunk {start_idx}:{end_idx}, error: {e}")
+        return np.zeros((end_idx - start_idx, 512), dtype='float32')
 
 # --- API schema
 class FrameDetail(BaseModel):

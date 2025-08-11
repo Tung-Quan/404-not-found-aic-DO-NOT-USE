@@ -1,53 +1,37 @@
 @echo off
 title AI Video Search API Server
-echo ================================================
-echo        AI Video Search API Server
-echo ================================================
+echo ======================================================
+echo        AI Video Search API Server - NOTICE
+echo ======================================================
 echo.
-echo Starting server...
-echo Please wait for "Application startup complete" message...
+echo ⚠️  NOTICE: This system now has TWO server versions!
 echo.
-echo Available endpoints after startup:
-echo   http://localhost:8000/docs     - API Documentation
-echo   http://localhost:8000/health   - Health Check
-echo   http://localhost:8000/         - Root Info
+echo 🚀 RECOMMENDED: start_server_simple.bat
+echo    - Memory optimized, fast startup, stable
+echo    - Port 8001, low resource usage
 echo.
-echo Press Ctrl+C to stop the server
-echo ================================================
+echo 🔥 ADVANCED: start_server_advanced.bat  
+echo    - Full features, higher memory usage
+echo    - Port 8000, may have memory issues
 echo.
+echo.
+set /p choice="Which version do you want? (1=Simple, 2=Advanced, 3=Exit): "
 
-cd /d "E:\Disk D\BK LEARNING\LEARNING\react\Project"
-
-REM Check if virtual environment exists
-if not exist ".venv\Scripts\activate.bat" (
-    echo ERROR: Virtual environment not found!
-    echo Please run: python -m venv .venv
+if "%choice%"=="1" (
+    echo Starting Simple Server...
+    call start_server_simple.bat
+) else if "%choice%"=="2" (
+    echo Starting Advanced Server...
+    call start_server_advanced.bat
+) else (
+    echo Goodbye!
     pause
-    exit /b 1
+    exit /b 0
 )
 
-REM Activate virtual environment
-call .venv\Scripts\activate.bat
-
-REM Check if required files exist
-if not exist "api\app.py" (
-    echo ERROR: api\app.py not found!
-    pause
-    exit /b 1
-)
-
-if not exist "index\meta.parquet" (
-    echo WARNING: index\meta.parquet not found!
-    echo You may need to run: python build_meta.py
-    echo.
-)
-
-REM Start the server
-echo Starting uvicorn server...
-python -m uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
-
-REM Handle graceful shutdown
 echo.
+echo Server selection complete.
+pause
 echo ================================================
 echo Server stopped.
 echo ================================================
