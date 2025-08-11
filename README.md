@@ -54,15 +54,26 @@ choco install ffmpeg
 # Hoặc tải từ: https://ffmpeg.org/download.html
 ```
 
-## 🛠️ Cài Đặt Chi Tiết
+## � Hướng Dẫn Cài Đặt Từng Bước
 
-### 1. Clone Repository
+### 📋 Yêu Cầu Hệ Thống
+- ✅ **Python 3.8+** đã cài đặt
+- ✅ **FFmpeg** đã cài đặt (xử lý video)
+- ✅ **4GB+ RAM** (8GB+ khuyến nghị cho Advanced server)
+- ✅ **Kết nối Internet** (tải AI model lần đầu)
+
+### 🔧 Cài Đặt Nhanh (5 Phút)
+
+#### Bước 1: Tải Project
 ```bash
-git clone <your-repo-url>
-cd ai-video-search
+# Clone từ GitLab
+git clone https://gitlab.com/404-not-found-2/ai-challenge-404-not-found-2.git
+cd ai-challenge-404-not-found-2
+
+# Hoặc tải ZIP và giải nén
 ```
 
-### 2. Tạo Virtual Environment
+#### Bước 2: Tạo Virtual Environment
 ```bash
 # Windows
 python -m venv .venv
@@ -73,21 +84,53 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 3. Cài Đặt Dependencies
+#### Bước 4: Chuẩn Bị Video Files
 ```bash
-pip install torch torchvision transformers
-pip install faiss-cpu pandas pyarrow
-pip install fastapi uvicorn scikit-learn
-pip install pillow tqdm
+# Tạo thư mục videos (nếu chưa có)
+mkdir videos
+
+# Đặt file video vào thư mục videos/
+# Hỗ trợ: .mp4, .avi, .mov, .mkv
 ```
 
-### 4. Chuẩn Bị Video Files
-Đặt file video (.mp4, .avi, .mov) vào thư mục `videos/`:
+#### Bước 5: Khởi Động Lần Đầu (Chọn 1 Trong 2)
+
+**Option A: Tự Động (Khuyến Nghị)**
+```bash
+# Xử lý video, tạo index, khởi động server một lần
+setup_and_run.bat
 ```
-videos/
-├── video1.mp4
-├── video2.mp4
-└── video3.mp4
+
+**Option B: Thủ Công (Nếu Muốn Hiểu Từng Bước)**
+```bash
+# 1. Xử lý video thành frames
+python extract_frames.py
+
+# 2. Tạo metadata index  
+python build_meta.py
+
+# 3. Tạo AI embeddings
+python build_embeddings.py
+
+# 4. Khởi động server
+start_server_simple.bat
+```
+
+#### Bước 6: Sử Dụng Hàng Ngày
+```bash
+# Chỉ cần chạy server (dữ liệu đã có)
+start_server_simple.bat
+
+# Truy cập: http://localhost:8001/docs
+```
+
+### ⚡ Quick Start (Cho Người Đã Biết)
+```bash
+git clone <repo-url> && cd ai-video-search
+python -m venv .venv && .venv\Scripts\activate  
+pip install -r requirements.txt
+# Đặt videos vào videos/
+setup_and_run.bat
 ```
 
 ## 🌐 API Endpoints
@@ -194,47 +237,77 @@ Nếu gặp vấn đề, hãy:
 3. Đảm bảo đã cài FFmpeg
 4. Kiểm tra log lỗi trong terminal
 
+## 🆘 Xử Lý Lỗi Thường Gặp
+
+### ❌ Memory Error (Lỗi Bộ Nhớ)
+```
+OSError: [WinError 8] Not enough memory resources
+```
+**Giải pháp**: Dùng Simple Server
+```bash
+start_server_simple.bat  # Thay vì start_server_advanced.bat
+```
+
+### ❌ Port Already in Use (Port Đã Được Sử Dụng)
+```
+OSError: [Errno 48] Address already in use
+```
+**Giải pháp**: 
+1. Đóng server cũ (Ctrl+C)
+2. Hoặc đổi port trong file .bat
+
+### ❌ FFmpeg Not Found
+```
+'ffmpeg' is not recognized as an internal or external command
+```
+**Giải pháp**:
+```bash
+# Windows (Chocolatey)
+choco install ffmpeg
+
+# Hoặc tải từ https://ffmpeg.org/download.html
+# Thêm vào PATH environment variable
+```
+
+### ❌ Python Not Found
+```
+'python' is not recognized as an internal or external command
+```
+**Giải pháp**: Cài Python 3.8+ từ https://python.org
+
+### ❌ No Videos Found
+```
+WARNING: No video files found in videos/
+```
+**Giải pháp**: Đặt file .mp4/.avi/.mov vào thư mục `videos/`
+
+### ❌ Missing Dependencies
+```
+ModuleNotFoundError: No module named 'torch'
+```
+**Giải pháp**:
+```bash
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+## 🔗 Liên Kết Hữu Ích
+
+- **FastAPI Documentation**: https://fastapi.tiangolo.com/
+- **CLIP Model**: https://github.com/openai/CLIP
+- **FAISS**: https://github.com/facebookresearch/faiss
+- **GitLab Repository**: https://gitlab.com/404-not-found-2/ai-challenge-404-not-found-2
+
+## 📞 Hỗ Trợ
+
+Nếu gặp vấn đề:
+1. 📖 Đọc phần "Xử Lý Lỗi" ở trên
+2. ⚡ Dùng Simple Server thay vì Advanced
+3. 🔍 Kiểm tra log lỗi trong terminal
+4. 💬 Tạo issue trên GitLab
+
 ---
 **Made with ❤️ using AI and CLIP** 🤖
-├── frames/                 # Extracted video frames
-│   ├── video1/
-│   │   ├── frame_000001.jpg
-│   │   ├── frame_000002.jpg
-│   │   └── ...
-│   └── video2/
-├── videos/                 # Source video files
-├── build_meta.py          # Metadata generation script
-├── start_server.bat       # Windows server start script
-├── setup_and_run.bat      # Windows full setup script
-└── README.md              # This documentation
-```
-
-## 📚 How It Works
-
-### Architecture Overview
-```
-Videos → Frame Extraction → AI Embeddings → Vector Index → Search API
-  📼         🖼️               🧠            ⚡           🔍
-```
-
-### Detailed Pipeline
-
-1. **Frame Extraction**: 
-   - FFmpeg extracts 1 frame per second from each video
-   - Frames saved as JPG images with timestamp info
-
-2. **Metadata Generation**:
-   - `build_meta.py` creates a pandas DataFrame with frame paths, video IDs, and timestamps
-   - Saved as `index/meta.parquet`
-
-3. **AI Embedding Creation**:
-   - `scripts/encode_siglip.py` uses CLIP model to convert each frame to a 512-dimensional vector
-   - Vectors represent the visual content semantically
-   - Saved as `index/embeddings/frames.f16.mmap`
-
-4. **Vector Indexing**:
-   - `scripts/build_faiss.py` builds a FAISS index for fast similarity search
-   - Uses Inner Product (IP) for cosine similarity
    - Saved as `index/faiss/ip_flat.index`
 
 5. **Search API**:
