@@ -1,0 +1,33 @@
+frames/
+.vscode/
+videos/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# Index files (potentially large)
+index/meta.parquet
+index/embeddings/
+index/faiss/
+*.mmap
+*.index
+
+# Model cache
+.cache/
+models/

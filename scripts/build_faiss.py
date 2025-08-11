@@ -1,0 +1,10 @@
+import os, faiss, numpy as np, pandas as pd
+meta = pd.read_parquet('index/meta.parquet')
+N = len(meta)
+vecs = np.memmap('index/embeddings/frames.f16.mmap', dtype='float16', mode='r', shape=(N, 512)).astype('float32')
+faiss.normalize_L2(vecs)
+index = faiss.IndexFlatIP(512)
+index.add(vecs)
+os.makedirs('index/faiss', exist_ok=True)
+faiss.write_index(index, 'index/faiss/ip_flat.index')
+print('Saved FAISS index at index/faiss/ip_flat.index (ntotal =', index.ntotal, ')')
