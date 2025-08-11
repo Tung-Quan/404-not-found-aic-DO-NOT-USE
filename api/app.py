@@ -8,6 +8,20 @@ import pickle
 from typing import List
 import os
 
+# Import Vietnamese translator
+try:
+    from .vietnamese_translator import translate_vietnamese_query
+    VIETNAMESE_SUPPORT = True
+    print("Vietnamese translation support loaded")
+except ImportError:
+    try:
+        from vietnamese_translator import translate_vietnamese_query
+        VIETNAMESE_SUPPORT = True
+        print("Vietnamese translation support loaded")
+    except ImportError:
+        VIETNAMESE_SUPPORT = False
+        print("Vietnamese translation not available")
+
 # --- Load metadata & vectors (lazy loading for memory efficiency)
 META = pd.read_parquet('index/meta.parquet')
 N = len(META)
@@ -87,6 +101,13 @@ class FrameSearchResponse(BaseModel):
     query: str
     total_frames_searched: int
     results: List[FrameHit]
+
+class VietnameseSearchResponse(BaseModel):
+    original_query: str
+    translated_query: str
+    total_frames_searched: int
+    results: List[FrameHit]
+    translation_available: bool
 
 app = FastAPI(title='Text→Video Retrieval API')
 
@@ -219,27 +240,8 @@ def search_frames(q: str,
     Search for individual frames closest to query.
     Returns top N frames from potentially different videos.
     """
-    # Embed query
-    qv = embed_text(q)[None, :]
-
-    # Search for top frames
-    scores, idx = INDEX.search(qv, top_frames)
-    scores, idx = scores[0], idx[0]
-
-    # Build frame results
-    frame_results = []
-    for score, frame_idx in zip(scores, idx):
-        row = META.iloc[frame_idx]
-        video_id = row['video_id']
-        
-        frame_results.append({
-            'frame_path': row['frame_path'],
-            'video_id': video_id,
-            'timestamp': float(row['ts']),
-            'score': float(score),
-            'video_path': f"videos/{video_id}"
-        })
-
+    frame_results = _search_frames_advanced_internal(q, top_frames)
+    
     return {
         'query': q,
         'total_frames_searched': top_frames,
@@ -272,3 +274,91 @@ def get_thumbnail(video_id: str):
         if frames:
             return FileResponse(os.path.join(frame_dir, frames[0]))
     return {"error": "Thumbnail not found"}
+
+# --- Vietnamese Search Endpoints
+@app.get('/search_vietnamese', response_model=VietnameseSearchResponse)
+def search_vietnamese_frames(q: str, top_frames: int = Query(5, ge=1, le=100)):
+    """
+    🇻🇳 Tìm kiếm frame bằng tiếng Việt với Advanced Features
+    
+    Endpoint chuyên biệt cho query tiếng Việt:
+    1. Tự động dịch tiếng Việt → tiếng Anh
+    2. Sử dụng bản dịch để search với CLIP model
+    3. Trả về kết quả với cả query gốc và bản dịch
+    4. Hỗ trợ tất cả tính năng advanced của server
+    
+    Examples:
+    - /search_vietnamese?q=người đang đi bộ
+    - /search_vietnamese?q=xe hơi đang chạy&top_frames=10
+    """
+    if not VIETNAMESE_SUPPORT:
+        # Fallback: use original Vietnamese query directly with CLIP
+        return {
+            'original_query': q,
+            'translated_query': q,
+            'translation_available': False,
+            'total_frames_searched': top_frames,
+            'results': _search_frames_advanced_internal(q, top_frames)
+        }
+    
+    try:
+        # Translate Vietnamese to English
+        original_query, translated_query = translate_vietnamese_query(q)
+        
+        # Use translated query for CLIP search
+        search_query = translated_query if translated_query != original_query else original_query
+        
+        # Perform search
+        results = _search_frames_advanced_internal(search_query, top_frames)
+        
+        return {
+            'original_query': original_query,
+            'translated_query': translated_query,
+            'translation_available': True,
+            'total_frames_searched': top_frames,
+            'results': results
+        }
+        
+    except Exception as e:
+        # Fallback: use original query if translation fails
+        print(f"Vietnamese search error: {e}")
+        return {
+            'original_query': q,
+            'translated_query': q,
+            'translation_available': False,
+            'total_frames_searched': top_frames,
+            'results': _search_frames_advanced_internal(q, top_frames)
+        }
+
+def _search_frames_advanced_internal(query: str, top_frames: int) -> List[dict]:
+    """
+    Internal function to perform advanced frame search
+    Used by both regular and Vietnamese endpoints
+    """
+    try:
+        # Embed query
+        qv = embed_text(query)[None, :]
+
+        # Search for top frames using FAISS
+        scores, idx = INDEX.search(qv, top_frames)
+        scores, idx = scores[0], idx[0]
+
+        # Build frame results
+        frame_results = []
+        for score, frame_idx in zip(scores, idx):
+            row = META.iloc[frame_idx]
+            video_id = row['video_id']
+            
+            frame_results.append({
+                'frame_path': row['frame_path'],
+                'video_id': video_id,
+                'timestamp': float(row['ts']),
+                'score': float(score),
+                'video_path': f"videos/{video_id}"
+            })
+
+        return frame_results
+        
+    except Exception as e:
+        print(f"Advanced frame search error: {e}")
+        return []
