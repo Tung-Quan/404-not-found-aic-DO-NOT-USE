@@ -1,10 +1,10 @@
 @echo off
 title AI Video Search API - Advanced Server
 echo =====================================================
-echo    🚀 AI Video Search API - ADVANCED VERSION
+echo    AI Video Search API - ADVANCED VERSION
 echo =====================================================
 echo.
-echo 🔥 ADVANCED FEATURES:
+echo ADVANCED FEATURES:
 echo   - TensorFlow Hub Universal Sentence Encoder
 echo   - EfficientNet V2 for visual features
 echo   - Multi-modal search (text + visual)
@@ -12,7 +12,7 @@ echo   - Language detection (Vietnamese/English)
 echo   - Dynamic score weighting
 echo   - Enhanced metadata processing
 echo.
-echo ⚠️  WARNING: Memory intensive with TF Hub models
+echo WARNING: Memory intensive with TF Hub models
 echo    Use start_server_simple.bat for lighter version
 echo.
 echo Available endpoints after startup:
@@ -33,18 +33,18 @@ call .venv\Scripts\activate.bat
 
 echo.
 echo Checking system status...
-python -c "import os; print('✅ Virtual environment active' if 'VIRTUAL_ENV' in os.environ else '❌ venv not active')"
+python -c "import os; print('Virtual environment active' if 'VIRTUAL_ENV' in os.environ else 'venv not active')"
 
 echo.
 echo Checking TensorFlow Hub availability...
-python -c "import tensorflow_hub as hub; print('✅ TensorFlow Hub ready')" 2>nul || echo "❌ TensorFlow Hub not installed"
+python -c "import tensorflow_hub as hub; print('TensorFlow Hub ready')" 2>nul || echo "TensorFlow Hub not installed"
 
 echo.
-echo 🔄 Starting Enhanced TF Hub API...
+echo Starting Enhanced TF Hub API...
 echo This may take longer as TF Hub models are loaded...
 echo.
 
-cd api
+cd src\api
 python app.py
 
 echo.
