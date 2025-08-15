@@ -108,6 +108,7 @@ backup_*/
 .mypy_cache
 .pytest_cache
 .hypothesis
+old_files/
 
 # Index files (potentially large)
 index/meta.parquet

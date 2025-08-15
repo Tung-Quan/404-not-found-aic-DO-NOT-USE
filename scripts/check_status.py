@@ -6,15 +6,16 @@ import os
 import sys
 
 def check_system_status():
-    print("=== System Status Check ===")
+    print("System Status Check")
+    print("=" * 20)
     print()
     
     # Check virtual environment
     if 'VIRTUAL_ENV' in os.environ:
-        print("✓ Virtual environment: Active")
+        print("[OK] Virtual environment: Active")
         print(f"  Path: {os.environ['VIRTUAL_ENV']}")
     else:
-        print("✗ Virtual environment: Not active")
+        print("[WARNING] Virtual environment: Not active")
     
     print()
     
@@ -22,9 +23,9 @@ def check_system_status():
     try:
         import pandas as pd
         meta = pd.read_parquet('index/meta.parquet')
-        print(f"✓ Metadata: {len(meta)} frames loaded")
+        print(f"[OK] Metadata: {len(meta)} frames loaded")
     except Exception as e:
-        print(f"✗ Metadata: Not found ({str(e)[:50]}...)")
+        print(f"[WARNING] Metadata: Not found ({str(e)[:50]}...)")
     
     # Check FAISS index
     try:

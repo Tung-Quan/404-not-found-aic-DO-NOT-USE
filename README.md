@@ -1,15 +1,14 @@
-# 🎥 Enhanced Video Search System with TensorFlow Hub
+# 🎥 Enhanced Video Search System
 
 <div align="center">
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
-![TensorFlow](https://img.shields.io/badge/TensorFlow-2.13+-orange.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.68+-green.svg)
-![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-Latest-green.svg)
+![Mode](https://img.shields.io/badge/Mode-Simple%20%26%20Fast-brightgreen.svg)
 
-**Advanced AI-powered video search system with intelligent TensorFlow Hub model selection**
+**🧠 Modern video search system - Simple & Reliable**
 
-[🚀 Quick Start](#-quick-start) • [📖 Features](#-features) • [🤖 TensorFlow Hub Integration](#-tensorflow-hub-integration) • [💻 Usage](#-usage) • [🔧 API](#-api-reference)
+[🚀 Quick Start](#-quick-start) • [📖 Features](#-features) • [🎯 Usage](#-usage) • [🔧 API](#-api-reference)
 
 </div>
 
@@ -17,49 +16,162 @@
 
 ## 📋 Overview
 
-Enhanced Video Search System là một hệ thống tìm kiếm video thông minh sử dụng AI, được tích hợp với nhiều mô hình TensorFlow Hub để cung cấp khả năng xử lý đa phương thức (text, video, audio) tiên tiến.
+Enhanced Video Search System là hệ thống tìm kiếm video thông minh với khả năng **auto-detection** và **intelligent fallback**. Hệ thống tự động phát hiện TensorFlow availability và chọn mode phù hợp.
 
 ### ✨ Key Features
 
-- 🤖 **Intelligent Model Selection**: Tự động đề xuất mô hình TensorFlow Hub phù hợp
-- 🔍 **Multi-modal Search**: Tìm kiếm kết hợp text, hình ảnh và video
-- 🌍 **Multilingual Support**: Hỗ trợ tiếng Việt và tiếng Anh
-- ⚡ **Smart Overlap Detection**: Phát hiện và giải quyết xung đột giữa các mô hình
-- 🎯 **Memory Optimization**: Quản lý bộ nhớ thông minh
-- 🌐 **Multiple Interfaces**: Web UI, API REST, và CLI
+- � **Auto-Detection**: Tự động phát hiện TensorFlow Hub và chọn mode tối ưu
+- � **Intelligent Fallback**: Full mode → Simple mode khi TensorFlow không available  
+- 🌍 **Cross-Platform**: Windows, Linux, macOS với 1 launcher thống nhất
+- ⚡ **Smart Search**: Vector search với TensorFlow Hub hoặc keyword search
+- 🎯 **Unified Experience**: 1 cách duy nhất để khởi động và sử dụng
+- 🌐 **Multiple Interfaces**: API, Web UI đều tích hợp auto-detection
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Installation
+### 1. One-Click Launch
 
-```bash
-# Clone repository
-git clone <repository-url>
-cd enhanced-video-search
-
-# Run one-click setup
-python scripts/setup_complete.py
-
-# Or quick launch
-launch.bat  # Windows
-# python scripts/setup_complete.py  # All platforms
+**Windows:**
+```cmd
+start.bat
 ```
 
-### 2. Launch System
+**Linux/macOS:**
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+**Cross-platform:**
+```bash
+python start.py
+```
+
+```
+
+### 2. Interactive Menu
+
+Sau khi chạy `python start.py`, bạn sẽ thấy menu:
+
+```
+🚀==========================================================🚀
+    Enhanced Video Search - Modern Simple Mode
+🚀==========================================================🚀
+
+🎯 CHỌN CHỨC NĂNG:
+1. 🔍 Tìm kiếm video (Simple Mode)
+2. 📊 Xem thông tin hệ thống
+3. 🗂️  Quản lý index
+4. 🌐 Khởi chạy API Server
+5. 🛠️  Cài đặt dependencies
+6. 🚪 Thoát
+```
+
+### 3. Access Points
+
+- **API Server**: http://localhost:8000 (chọn option 4)
+- **API Docs**: http://localhost:8000/docs
+- **Search Function**: Tích hợp trong launcher (option 1)
+
+---
+
+## 🎯 Modern Simple Features
+
+### 🚀 Simple & Fast System
+
+Hệ thống hiện tại tập trung vào:
+- ✅ **Tốc độ**: Khởi động nhanh, không dependency phức tạp
+- ✅ **Ổn định**: Không lỗi TensorFlow compatibility 
+- ✅ **Dễ sử dụng**: Menu interactive thân thiện
+- ✅ **Cross-platform**: Chạy được trên Windows/Linux/macOS
+
+### 🌐 Unified API Server
+
+```python
+# API endpoints hiện tại
+GET /api/health      # Kiểm tra trạng thái server
+GET /api/search      # Tìm kiếm với keyword matching
+GET /system/info     # Thông tin chi tiết hệ thống
+```
+
+**Simple Mode** (Current implementation):
+- Keyword-based search hiệu quả
+- Metadata search trong parquet files
+- Fast response time
+- No complex dependencies
+- Fallback functionality
+
+---
+
+## 📖 System Architecture
+
+1. **Quick Setup & Status Check** - Check system status and dependencies
+2. **Install Dependencies** - Install required Python packages
+3. **Start Enhanced API Server** - Launch FastAPI server (http://localhost:8000)
+4. **Start Web Interface** - Launch Streamlit interface (http://localhost:8501)
+5. **Check System Status** - Detailed system and dependency status
+6. **Run Complete Setup** - Full system setup and testing
+
+## Requirements
+
+- Python 3.8 or higher
+- Internet connection (for downloading dependencies)
+- At least 2GB RAM (for TensorFlow operations)
+- 1GB free disk space
+
+## First Time Setup
+
+1. Clone/download the project
+2. Navigate to the project directory
+3. Run the appropriate launcher for your OS:
+   - Windows: `run.bat`
+   - Linux/macOS: `./run.sh`
+4. Choose option [6] for complete setup
+5. Add video files to the `videos/` directory
+6. Start using the system!
+
+## Troubleshooting
+
+### Windows
+- If you get encoding errors, the launcher automatically sets UTF-8 encoding
+- Run as Administrator if you have permission issues
+
+### Linux/macOS
+- Make sure the script is executable: `chmod +x run.sh`
+- Use `python3` if `python` points to Python 2
+
+### All Platforms
+- Make sure you're in the project root directory
+- Check that Python 3.8+ is installed
+- Ensure you have internet connection for package downloads
+
+## Manual Commands
+
+If the launchers don't work, you can run commands manually:
 
 ```bash
-# Quick launch menu
-launch.bat
+# Create virtual environment
+python -m venv .venv
 
-# Or use detailed startup script
-scripts/start_server.bat
+# Activate (Windows)
+.venv\Scripts\activate
 
-# Or manually start specific component:
-python src/api/app.py                    # Enhanced API
-streamlit run src/ui/enhanced_web_interface.py  # Advanced Web UI
-python demos/enhanced_video_demo.py        # Interactive Demo
+# Activate (Linux/macOS)
+source .venv/bin/activate
+
+# Install dependencies
+python scripts/install_dependencies.py
+
+# Check status
+python scripts/check_status.py
+
+# Start API server
+python src/api/app.py
+
+# Start web interface
+python -m streamlit run src/ui/enhanced_web_interface.py
 ```
 
 ### 3. Access Interfaces
