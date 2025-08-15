@@ -31,43 +31,79 @@ Enhanced Video Search System là hệ thống tìm kiếm video thông minh vớ
 
 ## 🚀 Quick Start
 
-### 1. One-Click Launch
+### 1. One-Click Launch (Cross-Platform)
 
-**Windows:**
+**🪟 Windows - Multiple Options:**
 ```cmd
+# Option 1: Simple batch (recommended for beginners)
 start.bat
+
+# Option 2: Modern PowerShell (advanced features)
+powershell -ExecutionPolicy Bypass -File start.ps1
+
+# Option 3: Direct Python
+python start.py
 ```
 
-**Linux/macOS:**
+**🐧 Linux:**
 ```bash
+# Make executable (first time only)
 chmod +x start.sh
+
+# Launch
 ./start.sh
+
+# Or direct Python
+python3 start.py
 ```
 
-**Cross-platform:**
+**🍎 macOS:**
+```bash
+# Make executable (first time only)
+chmod +x start.sh
+
+# Launch
+./start.sh
+
+# Or direct Python
+python3 start.py
+```
+
+**🌍 Universal (Any OS):**
 ```bash
 python start.py
 ```
 
 ```
 
-### 2. Interactive Menu
+### 2. Smart Auto-Install Features
 
-Sau khi chạy `python start.py`, bạn sẽ thấy menu:
+Launcher mới có khả năng **Smart Auto-Install**:
 
 ```
 🚀==========================================================🚀
-    Enhanced Video Search - Modern Simple Mode
+    Enhanced Video Search - Smart Auto-Install
 🚀==========================================================🚀
 
-🎯 CHỌN CHỨC NĂNG:
-1. 🔍 Tìm kiếm video (Simple Mode)
-2. 📊 Xem thông tin hệ thống
-3. 🗂️  Quản lý index
+🎯 CURRENT MODE: ⚡ SIMPLE MODE / 🔥 FULL MODE
+
+CHỌN CHỨC NĂNG:
+1. 🧠 Tìm kiếm video (AI-Powered) / 🔍 Simple Mode
+2. � Cài đặt TensorFlow (Upgrade to Full Mode)
+3. �📊 Xem thông tin hệ thống
 4. 🌐 Khởi chạy API Server
 5. 🛠️  Cài đặt dependencies
-6. 🚪 Thoát
+6. � Test lại TensorFlow
+7. �🚪 Thoát
 ```
+
+**🔥 Key Features:**
+- ✅ **Auto-Detection**: Tự động phát hiện TensorFlow có sẵn
+- ✅ **Smart Install**: Cài đặt TensorFlow với phiên bản tương thích
+- ✅ **Mode Switching**: Chuyển đổi linh hoạt Simple ↔ Full Mode
+- ✅ **Cross-Platform**: Chạy mượt trên Windows/Linux/macOS
+- ✅ **Virtual Env**: Tự động kích hoạt virtual environment
+- ✅ **Error Handling**: Xử lý lỗi thông minh và gợi ý khắc phục
 
 ### 3. Access Points
 
