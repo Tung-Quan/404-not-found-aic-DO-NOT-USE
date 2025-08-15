@@ -1,23 +1,107 @@
-# Video and Frame Content (but keep folders)
-frames/*
-!frames/.gitkeep
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific - Data directories (too large for git)
+videos/*.mp4
+videos/*.avi
+videos/*.mov
+videos/*.mkv
+frames/*/
+index/embeddings/
+index/faiss/
+*.mmap
+
+# Keep directory structure but ignore content
 videos/*
 !videos/.gitkeep
+frames/*
+!frames/.gitkeep
+index/*
+!index/.gitkeep
+!index/embeddings/.gitkeep
+!index/faiss/.gitkeep
 
-.vscode/
-.venv/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
+# Model cache
+.cache/
+models/
+tfhub_modules/
+
+# Logs
+*.log
+logs/
+
+# TensorFlow and ML
 .tox
 .coverage
 .coverage.*
 .cache
 nosetests.xml
 coverage.xml
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Large data files
+*.parquet
+*.h5
+*.hdf5
+
+# Backup files
+backup_*/
+*.bak
 *.cover
 *.log
 .git

@@ -1,1 +1,0 @@
-& "E:/Disk D/BK LEARNING/LEARNING/react/Project/.venv/Scripts/python.exe" -m uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload

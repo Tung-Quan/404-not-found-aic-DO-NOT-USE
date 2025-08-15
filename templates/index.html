@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 Enhanced Video Search</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .search-section {
+            padding: 40px;
+            background: #f8f9ff;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1.1em;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+        
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .search-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .search-btn:disabled {
+            opacity: 0.6;
+            transform: none;
+            cursor: not-allowed;
+        }
+        
+        .suggestions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .suggestion-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+        
+        .suggestion-btn:hover {
+            background: #4facfe;
+            color: white;
+            border-color: #4facfe;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .results-section {
+            padding: 0 40px 40px;
+        }
+        
+        .search-info {
+            background: #e8f4fd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border-left: 4px solid #4facfe;
+        }
+        
+        .search-info h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #4facfe;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            color: #2d3748;
+            font-size: 1.1em;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .result-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 1px solid #e1e5e9;
+        }
+        
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .result-score {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        
+        .result-video {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        .result-timestamp {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+        
+        .result-title {
+            background: #f8f9ff;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-style: italic;
+            color: #4a5568;
+            border-left: 3px solid #4facfe;
+        }
+        
+        .result-labels {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .label-tag {
+            background: #e2e8f0;
+            color: #4a5568;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+        
+        .result-scores {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9em;
+        }
+        
+        .score-item {
+            color: #666;
+        }
+        
+        .score-value {
+            font-weight: bold;
+            color: #4facfe;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+        }
+        
+        .no-results-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #c53030;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .search-form {
+                flex-direction: column;
+            }
+            
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Enhanced Video Search</h1>
+            <p>AI-powered multi-modal search with Chinese-CLIP & enhanced metadata</p>
+        </div>
+        
+        <div class="search-section">
+            <form id="searchForm" class="search-form">
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    class="search-input" 
+                    placeholder="Search for React tutorials, backend development, ecommerce..." 
+                    autocomplete="off"
+                >
+                <button type="submit" id="searchBtn" class="search-btn">🔍 Search</button>
+            </form>
+            
+            <div class="suggestions">
+                <button class="suggestion-btn" onclick="searchQuery('React programming tutorial')">React tutorial</button>
+                <button class="suggestion-btn" onclick="searchQuery('backend development')">Backend development</button>
+                <button class="suggestion-btn" onclick="searchQuery('ecommerce application')">Ecommerce app</button>
+                <button class="suggestion-btn" onclick="searchQuery('JavaScript coding')">JavaScript coding</button>
+                <button class="suggestion-btn" onclick="searchQuery('deployment AWS')">AWS deployment</button>
+            </div>
+        </div>
+        
+        <div id="loadingDiv" class="loading" style="display: none;">
+            🔄 Searching through 7,932 video frames...
+        </div>
+        
+        <div id="resultsSection" class="results-section" style="display: none;">
+            <div id="searchInfo" class="search-info"></div>
+            <div id="resultsGrid" class="results-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        const searchForm = document.getElementById('searchForm');
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const loadingDiv = document.getElementById('loadingDiv');
+        const resultsSection = document.getElementById('resultsSection');
+        const searchInfo = document.getElementById('searchInfo');
+        const resultsGrid = document.getElementById('resultsGrid');
+        
+        searchForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const query = searchInput.value.trim();
+            if (query) {
+                performSearch(query);
+            }
+        });
+        
+        function searchQuery(query) {
+            searchInput.value = query;
+            performSearch(query);
+        }
+        
+        async function performSearch(query) {
+            // Show loading
+            loadingDiv.style.display = 'block';
+            resultsSection.style.display = 'none';
+            searchBtn.disabled = true;
+            searchBtn.textContent = '🔄 Searching...';
+            
+            try {
+                const response = await fetch(`/search?q=${encodeURIComponent(query)}&topk=12`);
+                const data = await response.json();
+                
+                // Hide loading
+                loadingDiv.style.display = 'none';
+                searchBtn.disabled = false;
+                searchBtn.textContent = '🔍 Search';
+                
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+                
+                displayResults(data);
+                
+            } catch (error) {
+                loadingDiv.style.display = 'none';
+                searchBtn.disabled = false;
+                searchBtn.textContent = '🔍 Search';
+                showError('Search failed: ' + error.message);
+            }
+        }
+        
+        function displayResults(data) {
+            resultsSection.style.display = 'block';
+            
+            // Search info
+            const analysis = data.analysis;
+            searchInfo.innerHTML = `
+                <h3>🔍 Search Results for "${data.query}"</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">⏱️ Search Time</div>
+                        <div class="info-value">${data.search_time_ms.toFixed(1)}ms</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">🌐 Language</div>
+                        <div class="info-value">${analysis.language}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">📋 Topics</div>
+                        <div class="info-value">${analysis.topics.join(', ') || 'General'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">📊 Results</div>
+                        <div class="info-value">${data.total_results}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">⚖️ Weights</div>
+                        <div class="info-value">Visual ${data.weights.alpha.toFixed(1)} | Text ${data.weights.beta.toFixed(1)}</div>
+                    </div>
+                </div>
+            `;
+            
+            // Results
+            if (data.results.length === 0) {
+                resultsGrid.innerHTML = `
+                    <div class="no-results">
+                        <div class="no-results-icon">🔍</div>
+                        <h3>No results found</h3>
+                        <p>Try different keywords or check the suggestions above</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            resultsGrid.innerHTML = data.results.map(result => `
+                <div class="result-card">
+                    <div class="result-header">
+                        <div class="result-score">${(result.final_score * 100).toFixed(1)}%</div>
+                    </div>
+                    
+                    <div class="result-video">${result.video}</div>
+                    <div class="result-timestamp">⏰ ${result.time_formatted}</div>
+                    
+                    ${result.title ? `<div class="result-title">"${result.title}"</div>` : ''}
+                    
+                    ${result.labels && result.labels.length > 0 ? `
+                        <div class="result-labels">
+                            ${result.labels.slice(0, 3).map(label => `<span class="label-tag">${label}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    <div class="result-scores">
+                        <div class="score-item">👁️ Visual: <span class="score-value">${(result.visual_score * 100).toFixed(1)}%</span></div>
+                        <div class="score-item">📝 Text: <span class="score-value">${(result.text_score * 100).toFixed(1)}%</span></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function showError(message) {
+            resultsSection.style.display = 'block';
+            searchInfo.innerHTML = '';
+            resultsGrid.innerHTML = `
+                <div class="error">
+                    <strong>❌ Error:</strong> ${message}
+                </div>
+            `;
+        }
+        
+        // Auto-focus search input
+        searchInput.focus();
+    </script>
+</body>
+</html>
