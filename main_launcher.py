@@ -254,10 +254,22 @@ def get_user_choice(status: Dict[str, Any]) -> Optional[str]:
     
     choices = []
     
-    # Option 1: Full Version with detailed explanation
+    # Option 1: NEW Web Interface
+    choices.append(("1", "web", "🌐 WEB INTERFACE - Multi-Dataset & Model Switching (NEW!)"))
+    print("   1. 🌐 WEB INTERFACE - Multi-Dataset & Model Switching (NEW!)")
+    print("      • 🎯 Visual interface with drag-drop search")
+    print("      • 🔄 Real-time model switching (CLIP Base/Large, BLIP)")
+    print("      • 📁 Multi-dataset management (Nature, People, Mixed)")
+    print("      • ⚡ GPU-accelerated search with previews")
+    print("      • 🖼️ Image upload and similarity search")
+    print("      • 🚀 Best for new users and demonstrations")
+    print("      • 🌐 Access: http://localhost:8080")
+    print()
+    
+    # Option 2: Full Version API
     if status["versions"]["full"]["available"]:
-        choices.append(("1", "full", "🔥 FULL VERSION - Complete AI Experience"))
-        print("   1. 🔥 FULL VERSION - Complete AI Experience")
+        choices.append(("2", "full", "🔥 FULL API VERSION - Complete AI Experience"))
+        print("   2. 🔥 FULL API VERSION - Complete AI Experience")
         print("      • GPU-optimized deep learning models")
         print("      • Advanced semantic search with transformers")
         print("      • Multi-modal AI (vision + language)")
@@ -277,6 +289,7 @@ def get_user_choice(status: Dict[str, Any]) -> Optional[str]:
             print("      • ⚠️ TensorFlow Hub: Available but not fully loaded")
             
         print("      • ✅ Real-time video analysis with CLIP/BLIP")
+        print("      • 🌐 Access: http://localhost:8000")
         
         if status["python_compatible"]:
             print("      ✅ Status: Ready to launch")
@@ -535,6 +548,72 @@ def auto_install_full_dependencies():
     
     input("\n👉 Press Enter to continue...")
 
+def start_web_interface():
+    """Start the enhanced web interface"""
+    print("🌐 Starting Enhanced Web Interface...")
+    print("=" * 50)
+    
+    try:
+        # Check if web interface exists
+        if not os.path.exists("web_interface.py"):
+            print("❌ web_interface.py not found")
+            print("💡 Please ensure all files are properly installed")
+            return False
+            
+        print("🔄 Initializing web interface...")
+        print("   • Multi-dataset management")
+        print("   • Real-time model switching") 
+        print("   • GPU acceleration")
+        print("   • Visual search interface")
+        print()
+        
+        print("🚀 Starting server...")
+        print("📱 Access URL: http://localhost:8080")
+        print("⏹️  Press Ctrl+C to stop")
+        print()
+        
+        # Import and run web interface
+        import subprocess
+        import sys
+        
+        result = subprocess.run([sys.executable, "web_interface.py"], 
+                              cwd=os.getcwd())
+        
+        if result.returncode == 0:
+            print("✅ Web interface closed successfully")
+        else:
+            print("⚠️ Web interface exited with errors")
+            
+        return True
+        
+    except ImportError as e:
+        print(f"❌ Import error: {e}")
+        print("💡 Some dependencies may be missing")
+        print("🔧 Try running option 4 (Auto-Install) first")
+        return False
+    except Exception as e:
+        print(f"❌ Failed to start web interface: {e}")
+        print("🔧 Check your installation and try again")
+        return False
+
+def start_full_version():
+    """Start full version with all models"""
+    print("🚀 Starting full AI Video Search Engine...")
+    try:
+        from ai_search_engine import EnhancedAIVideoSearchEngine
+        ai_search = EnhancedAIVideoSearchEngine()
+        ai_search.run()
+        return True
+    except ImportError as e:
+        print(f"❌ Import error: {e}")
+        print("💡 Some dependencies may be missing")
+        print("🔧 Try running option 4 (Auto-Install) first")
+        return False
+    except Exception as e:
+        print(f"❌ Failed to start full version: {e}")
+        print("🔧 Check your installation and try again")
+        return False
+
 def main():
     """Main application entry point"""
     print_banner()
@@ -549,17 +628,23 @@ def main():
         # Get user choice
         choice = get_user_choice(status)
         
-        if choice == "full":
+        if choice == "web":
+            start_web_interface()
+        elif choice == "full":
             start_full_version()
         elif choice == "lite":
             start_lite_version()
         elif choice == "install":
             auto_install_full_dependencies()
+        elif choice == "demo":
+            # Demo mode - start web interface with datasets
+            print("🎁 Starting demo mode with sample datasets...")
+            start_web_interface()
         elif choice == "compare":
             run_performance_comparison()
         elif choice == "fix":
             fix_dependencies()
-        elif choice == "quit":
+        elif choice == "exit":
             print("👋 Goodbye!")
             break
         

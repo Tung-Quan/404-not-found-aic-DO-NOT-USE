@@ -610,8 +610,97 @@ class EnhancedHybridModelManager:
             "models": self.tensorflow_manager.get_available_models(),
             "memory_usage": self.tensorflow_manager.get_memory_usage()
         }
+    
+    def initialize_default_models(self):
+        """Initialize default models"""
+        try:
+            # Load default CLIP model
+            clip_key = "clip_vit_base_pytorch"
+            if clip_key in self.available_models:
+                success = self.load_model(clip_key)
+                if success:
+                    self.active_models["vision_language"] = clip_key
+                    print("✅ Default CLIP model initialized")
+                    return True
+            
+            print("⚠️ Default model not available")
+            return False
+            
+        except Exception as e:
+            print(f"❌ Error initializing default models: {e}")
+            return False
+    
+    def set_vision_language_model(self, model_name: str) -> bool:
+        """Set active vision-language model"""
+        try:
+            # Find model by name
+            target_key = None
+            for key, config in self.available_models.items():
+                if config.name == model_name or key == model_name:
+                    if config.model_type == ModelType.VISION_LANGUAGE:
+                        target_key = key
+                        break
+            
+            if not target_key:
+                print(f"❌ Model '{model_name}' not found")
+                return False
+            
+            # Load model if not already loaded
+            if target_key not in self.loaded_models:
+                success = self.load_model(target_key)
+                if not success:
+                    return False
+            
+            # Set as active
+            self.active_models["vision_language"] = target_key
+            print(f"✅ Set vision_language model to: {model_name}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error setting vision_language model: {e}")
+            return False
+    
+    def set_text_embedding_model(self, model_name: str) -> bool:
+        """Set active text embedding model"""
+        try:
+            # Find model by name
+            target_key = None
+            for key, config in self.available_models.items():
+                if config.name == model_name or key == model_name:
+                    if config.model_type == ModelType.TEXT_EMBEDDING:
+                        target_key = key
+                        break
+            
+            if not target_key:
+                print(f"❌ Model '{model_name}' not found")
+                return False
+            
+            # Load model if not already loaded
+            if target_key not in self.loaded_models:
+                success = self.load_model(target_key)
+                if not success:
+                    return False
+            
+            # Set as active
+            self.active_models["text_embedding"] = target_key
+            print(f"✅ Set text_embedding model to: {model_name}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error setting text_embedding model: {e}")
+            return False
+    
+    def get_current_models(self) -> Dict[str, str]:
+        """Get currently active models"""
+        result = {}
+        for model_type, model_key in self.active_models.items():
+            if model_key and model_key in self.loaded_models:
+                result[model_type] = self.loaded_models[model_key].name
+            else:
+                result[model_type] = None
+        return result
 
-# Alias for backward compatibility
+# Alias for backward compatibility  
 HybridModelManager = EnhancedHybridModelManager
 
 if __name__ == "__main__":
@@ -722,26 +811,6 @@ if __name__ == "__main__":
             "memory_usage": self.tensorflow_manager.get_memory_usage()
         }
     
-    def get_enhanced_system_info(self) -> Dict[str, Any]:
-        """Get comprehensive system information including AI agents and TensorFlow"""
-        base_info = self.get_system_info()
-        
-        # Add AI agents info
-        base_info["ai_agents"] = self.get_ai_agents_status()
-        
-        # Add TensorFlow models info
-        base_info["tensorflow_models"] = self.get_tensorflow_models_status()
-        
-        # Add availability flags
-        base_info["enhanced_features"] = {
-            "ai_agents_available": AI_AGENTS_AVAILABLE,
-            "tensorflow_models_available": TENSORFLOW_MODELS_AVAILABLE,
-            "total_capabilities": len(self.available_models) + \
-                               (len(self.tensorflow_manager.configs) if self.tensorflow_manager else 0)
-        }
-        
-        return base_info
-
 def test_enhanced_manager():
     """Test enhanced hybrid manager với đầy đủ features"""
     print("🧪 Testing Enhanced Hybrid Model Manager with AI Agents & TensorFlow...")

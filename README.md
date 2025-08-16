@@ -29,14 +29,48 @@ cd ai-video-search
 # Install with auto-setup (handles all dependencies)
 python setup.py
 
-# Start the system (choose Full Version - option 1)
+# Start the system (choose option based on needs)
 python main_launcher.py
 ```
 
-### 🌐 **Instant API Testing**
+### 🌐 **New: Advanced Web Interface (Recommended)**
 
-After setup, test the live API:
+**🔥 Start the enhanced web interface with multi-dataset support:**
 
+```bash
+# Start advanced web interface
+python web_interface.py
+
+# Access at: http://localhost:8080
+```
+
+**✨ Features:**
+- 🎯 **Multi-Dataset Switching**: Nature, People, Mixed collections
+- 🔄 **Real-time Model Switching**: CLIP Base/Large, BLIP, USE
+- 🖼️ **Visual Interface**: Drag-drop search, image previews
+- ⚡ **GPU Accelerated**: RTX 3060 optimization
+
+### 🎮 **Classic API Interface**
+
+For API development and testing:
+
+```bash
+# Start classic API
+python main_launcher.py  # Choose option 1
+
+# Access at: http://localhost:8000
+```
+
+### 🧪 **Instant Testing Options**
+
+**Option A: Web Interface (Recommended for new users)**
+```bash
+python web_interface.py
+# Then visit: http://localhost:8080
+# Try searching: "person", "tree", "car", "office"
+```
+
+**Option B: API Testing**
 ```bash
 # Health check
 curl http://localhost:8000/health
@@ -50,11 +84,17 @@ curl -X POST "http://localhost:8000/search" \
 curl http://localhost:8000/system/info
 ```
 
-### 📱 **Web Interface**
+### � **Demo Datasets (Auto-included)**
 
-- **Main Interface**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/docs
-- **Interactive Testing**: Use the Swagger UI at `/docs`
+**🎁 Ready-to-use datasets for immediate testing:**
+
+| Dataset | Content | Videos | Use Case |
+|---------|---------|--------|----------|
+| **Nature Collection** | Thiên nhiên, cây xanh | 2 videos | Environment, landscapes |
+| **People Collection** | Lập trình, coding | 1 video | Human activities, education |
+| **Mixed Collection** | Tạp chí, mixed content | 1 video | General content |
+
+**✅ No setup needed**: Datasets are automatically created during first run
 
 ---
 
@@ -109,6 +149,100 @@ Enhanced AI Video Search System là hệ thống tìm kiếm video thông minh t
 - **Memory Usage**: ~2GB VRAM on RTX 3060
 
 ---
+
+
+## 🔍 **PHÂN TÍCH HỆ THỐNG & KIẾN TRÚC**
+
+### 📊 **Tổng Quan Mô Hình (Model Architecture)**
+
+Hệ thống Enhanced AI Video Search được thiết kế với **3 lớp mô hình** để tối ưu performance và user experience:
+
+#### **1. 🎯 Lớp Mô hình Cơ bản (4 models) - Web Interface**
+*Hiển thị trong giao diện web cho người dùng lựa chọn*
+
+| Mô hình | Loại | Công nghệ | Mục đích |
+|---------|------|-----------|----------|
+| **CLIP ViT Base** | Vision-Language | PyTorch | Tìm kiếm semantic chính |
+| **CLIP ViT Large** | Vision-Language | PyTorch | Tìm kiếm nâng cao, độ chính xác cao |
+| **BLIP Base** | Image Captioning | PyTorch | Tạo mô tả hình ảnh |
+| **Universal Sentence Encoder v4** | Text Embedding | TensorFlow | Xử lý văn bản |
+
+#### **2. 🔧 Lớp TensorFlow Models (11 models) - Backend Processing**
+*Hoạt động ngầm để hỗ trợ các tính năng mở rộng*
+
+| Nhóm | Mô hình | Chức năng |
+|------|---------|-----------|
+| **Image Embedding** | MobileNet V2, Inception V3, ResNet-50, EfficientNet B0 | Feature extraction, nhận dạng hình ảnh |
+| **Text Processing** | USE, USE Multilingual, USE Large | Đa ngôn ngữ, text embedding nâng cao |
+| **Object Detection** | SSD MobileNet, Faster R-CNN | Phát hiện đối tượng trong video |
+| **Classification** | ImageNet MobileNet, BiT ResNet-50 | Phân loại và transfer learning |
+
+#### **3. 🤖 Lớp AI Agents (2 agents) - Xử lý Đặc biệt**
+*Local processing cho các tác vụ phức tạp*
+
+| Agent | Provider | Chức năng |
+|-------|----------|-----------|
+| **BLIP Local** | Local | Image captioning nâng cao |
+| **LLaMA Local** | Local | Text generation, xử lý ngôn ngữ tự nhiên |
+
+### 🎨 **Thiết Kế UX/UI**
+
+**❓ Tại sao chỉ hiển thị 4 mô hình trong web interface?**
+
+✅ **Lý do thiết kế:**
+- **Đơn giản hóa UX**: Tránh overwhelm người dùng với 17 tùy chọn
+- **Focus on core**: 4 mô hình cơ bản đủ cho 95% use cases
+- **Performance**: Chỉ load mô hình khi cần thiết
+- **GPU Memory**: Quản lý hiệu quả 6GB VRAM (RTX 3060)
+
+**🔧 Backend Power**: 11 TensorFlow models + 2 AI agents hoạt động ngầm khi cần thiết
+
+### 📁 **Dataset Management System**
+
+#### **🎯 Multi-Dataset Architecture**
+Hệ thống hỗ trợ quản lý nhiều dataset riêng biệt:
+
+```
+datasets/
+├── nature_collection/     # 2 videos về thiên nhiên
+├── people_collection/     # 1 video về lập trình  
+└── mixed_collection/      # 1 video tạp chí
+```
+
+**✨ Đặc điểm:**
+- ✅ **Independent**: Mỗi dataset có config riêng, embeddings riêng
+- ✅ **Switchable**: Chuyển đổi real-time qua web interface
+- ✅ **Scalable**: Dễ dàng thêm dataset mới
+- ✅ **Isolated**: Không ảnh hưởng lẫn nhau
+
+#### **🚀 Tác Động Đối Với Người Dùng Mới**
+
+**❌ KHÔNG có tác động tiêu cực:**
+- ✅ Setup process không thay đổi
+- ✅ Dependencies và requirements giữ nguyên
+- ✅ Các script khởi động hoạt động bình thường
+- ✅ Fallback automatic nếu không có datasets
+
+**✨ Lợi ích cho người dùng mới:**
+- 🎯 **Ví dụ sẵn có**: 4 video demo để test ngay
+- 🔄 **Experience đầy đủ**: Thấy được khả năng multi-dataset
+- 📚 **Học tập**: Hiểu cách tổ chức dữ liệu
+- ⚡ **Immediate value**: Không cần chuẩn bị data
+
+### 🎯 **System Capabilities Summary**
+
+| Loại | Số lượng | Trạng thái | Mục đích |
+|------|----------|------------|----------|
+| **Core Models** | 4 | ✅ Active | Web interface, user selection |
+| **TensorFlow Models** | 11 | ✅ Backend | Advanced processing, features |
+| **AI Agents** | 2 | ✅ Ready | Local processing, generation |
+| **Datasets** | 3 | ✅ Demo | Multi-dataset demonstration |
+| ****Total Capabilities** | **17** | **✅ Production** | **Complete AI video search** |
+
+**🏆 Kết luận: Hệ thống đã optimal cho cả người dùng mới và advanced users!**
+
+---
+
 
 ## 📊 API Usage
 

@@ -53,6 +53,12 @@ index/embeddings/
 index/faiss/
 *.mmap
 
+# Dataset videos (can be very large)
+datasets/*/videos/*.mp4
+datasets/*/videos/*.avi
+datasets/*/videos/*.mov
+datasets/*/videos/*.mkv
+
 # Keep directory structure but ignore content
 videos/*
 !videos/.gitkeep
