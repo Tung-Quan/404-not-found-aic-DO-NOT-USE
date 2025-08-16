@@ -705,7 +705,7 @@ def print_completion_message(mode, python_version):
     print("=" * 60)
 
 def setup_embedding_system():
-    """Setup embedding system components"""
+    """Setup embedding system components and build embeddings"""
     print("\n🎯 Setting up AI Embedding System...")
     
     # Check if embeddings already exist
@@ -721,8 +721,34 @@ def setup_embedding_system():
         for emb in existing_embeddings:
             size_mb = os.path.getsize(emb) / 1024 / 1024
             print(f"   📁 {emb} ({size_mb:.1f} MB)")
+        print("🔄 Embeddings already exist - skipping build")
     else:
-        print("🔄 No embeddings found - will be created on first use")
+        print("🔄 No embeddings found - building now...")
+        
+        # Try to build embeddings automatically
+        try:
+            print("🔄 Initializing AI models and building embeddings...")
+            
+            # Import and initialize the system
+            from ai_search_engine import EnhancedAIVideoSearchEngine
+            from enhanced_hybrid_manager import EnhancedHybridModelManager
+            
+            print("📚 Loading AI models...")
+            manager = EnhancedHybridModelManager()
+            search_engine = EnhancedAIVideoSearchEngine(model_manager=manager)
+            
+            print("🤖 Initializing default models...")
+            search_engine.initialize_default_models()
+            
+            print("🏗️ Building embeddings index (this may take a few minutes)...")
+            search_engine.build_embeddings_index()
+            
+            print("✅ Embeddings built successfully!")
+            
+        except Exception as e:
+            print(f"⚠️ Could not auto-build embeddings: {e}")
+            print("💡 You can build them manually later:")
+            print("   📋 Run: python -c \"from ai_search_engine import *; from enhanced_hybrid_manager import *; manager = EnhancedHybridModelManager(); engine = EnhancedAIVideoSearchEngine(model_manager=manager); engine.initialize_default_models(); engine.build_embeddings_index()\"")
     
     # Check embedding scripts
     embedding_scripts = [
@@ -740,8 +766,6 @@ def setup_embedding_system():
         print("✅ All embedding scripts available")
     
     print("🎯 Embedding system ready!")
-    print("   📋 Run: python scripts/encode_chinese_clip.py")
-    print("   📊 Then: python scripts/build_faiss_chinese_clip.py")
     
     return True
 

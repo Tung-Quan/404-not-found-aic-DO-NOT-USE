@@ -655,13 +655,18 @@ class EnhancedAIVideoSearchEngine:
             query_embedding = query_embedding.reshape(1, -1).astype('float32')
             faiss.normalize_L2(query_embedding)
             
-            scores, indices = self.faiss_indexes[model_key].search(query_embedding, top_k)
+            distances, indices = self.faiss_indexes[model_key].search(query_embedding, top_k)
             
             results = []
-            for score, idx in zip(scores[0], indices[0]):
+            for distance, idx in zip(distances[0], indices[0]):
                 if idx < len(self.frames_metadata):
                     frame_data = self.frames_metadata[idx].copy()
-                    frame_data['similarity_score'] = float(score)
+                    # Convert distance to similarity score (0=identical, higher=less similar)
+                    # Use 1/(1+distance) to convert distance to similarity (0-1 range)
+                    similarity = 1.0 / (1.0 + float(distance))
+                    frame_data['similarity_score'] = similarity
+                    frame_data['distance'] = float(distance)
+                    frame_data['score'] = similarity  # For API compatibility
                     frame_data['model_used'] = model_key
                     results.append(frame_data)
         else:
@@ -672,7 +677,9 @@ class EnhancedAIVideoSearchEngine:
             results = []
             for idx in top_indices:
                 frame_data = self.frames_metadata[idx].copy()
-                frame_data['similarity_score'] = float(similarities[idx])
+                similarity = float(similarities[idx])
+                frame_data['similarity_score'] = similarity
+                frame_data['score'] = similarity  # For API compatibility
                 frame_data['model_used'] = model_key
                 results.append(frame_data)
         
