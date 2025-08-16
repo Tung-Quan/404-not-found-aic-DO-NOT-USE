@@ -1,0 +1,57 @@
+# Enhanced AI Video Search System - Python 3.13 Compatible Dependencies
+
+# =====================================
+# CORE WEB FRAMEWORK
+# =====================================
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+pydantic>=2.5.0
+
+# =====================================
+# COMPUTER VISION (BASIC)
+# =====================================
+opencv-python-headless>=4.8.0
+Pillow>=10.0.0
+scikit-image>=0.20.0
+
+# =====================================
+# DATA PROCESSING
+# =====================================
+numpy>=1.24.0
+scipy>=1.10.0
+
+# =====================================
+# MACHINE LEARNING (BASIC)
+# =====================================
+scikit-learn>=1.3.0
+
+# =====================================
+# UTILITIES
+# =====================================
+requests>=2.31.0
+python-dotenv>=1.0.0
+tqdm>=4.65.0
+psutil>=5.9.0
+colorama>=0.4.6
+
+# =====================================
+# NLP & TEXT PROCESSING
+# =====================================
+nltk>=3.8.0
+spacy>=3.6.0
+
+# =====================================
+# VIDEO PROCESSING
+# =====================================
+moviepy>=1.0.3
+
+# =====================================
+# OPTIONAL AI FRAMEWORKS (install separately if needed)
+# =====================================
+# torch>=2.0.0  # Install with: pip install torch --index-url https://download.pytorch.org/whl/cpu
+# tensorflow>=2.13.0  # May need specific build for Python 3.13
+# transformers>=4.30.0
+# sentence-transformers>=2.2.0
+# openai>=1.0.0
+# anthropic>=0.7.0

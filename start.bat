@@ -1,51 +1,39 @@
 @echo off
-title Enhanced Video Search System - Smart Auto-Install
+REM Frame Search System - Windows Batch Launcher
+REM ============================================
 
-REM Set encoding and environment for better compatibility
-set PYTHONIOENCODING=utf-8
-set PYTHONPATH=%CD%
-chcp 65001 >nul 2>&1
-
-echo ================================================================
-echo     Enhanced Video Search System - Smart Auto-Install
-echo ================================================================
+echo.
+echo FRAME SEARCH SYSTEM - Windows Launcher
+echo ============================================
 echo.
 
-REM Check Python
+REM Check if Python is available
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] Python not found. Please install Python 3.8+
-    echo Download from: https://www.python.org/downloads/
+    echo ERROR: Python not found! Please install Python 3.8+
+    echo Download from: https://python.org/downloads/
     pause
     exit /b 1
 )
 
-REM Check if we're in the right directory
-if not exist "start.py" (
-    echo [ERROR] start.py not found. Please run from project root directory.
-    pause
-    exit /b 1
-)
-
-REM Auto-activate virtual environment if exists
-if exist ".venv\Scripts\activate.bat" (
-    echo [INFO] Activating virtual environment...
-    call .venv\Scripts\activate.bat
-)
-
-REM Run smart launcher
-echo [INFO] Starting Smart Auto-Install Launcher...
+echo OK: Python detected
 echo.
-python start.py
 
-if errorlevel 1 (
-    echo.
-    echo [ERROR] Failed to start the system
-    echo Check the error messages above for details.
+REM Check if launcher exists
+if not exist "launcher.py" (
+    echo ERROR: launcher.py not found!
+    echo Make sure you're in the correct directory
     pause
     exit /b 1
 )
+
+echo Starting Frame Search Launcher...
+echo Press Ctrl+C to stop
+echo.
+
+REM Run the launcher
+python launcher.py
 
 echo.
-echo [INFO] System exited normally.
+echo Frame Search System stopped
 pause
