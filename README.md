@@ -132,7 +132,6 @@ agent_manager = AIAgentManager()
 
 ---
 
-## 🚀 Quick Start - Hướng Dẫn Cho Người Mới
 
 > **💡 Lưu ý**: Hệ thống này phức tạp với nhiều AI components. Hãy làm theo từng bước để có trải nghiệm tốt nhất!
 

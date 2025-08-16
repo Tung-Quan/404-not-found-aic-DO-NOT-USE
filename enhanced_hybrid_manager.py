@@ -139,6 +139,32 @@ class EnhancedHybridModelManager:
         self.device = self._setup_device(device)
         print(f"💾 Using device: {self.device}")
         
+        # Initialize external managers
+        self.ai_agent_manager = None
+        self.tensorflow_manager = None
+        
+        # Initialize AI Agent Manager if available
+        if AI_AGENTS_AVAILABLE and ai_agent_manager:
+            try:
+                self.ai_agent_manager = ai_agent_manager
+                print(f"🤖 AI Agent Manager loaded")
+            except Exception as e:
+                print(f"⚠️ AI Agent Manager failed to load: {e}")
+                self.ai_agent_manager = None
+        else:
+            print(f"⚠️ AI Agent Manager not available")
+        
+        # Initialize TensorFlow Manager if available  
+        if TENSORFLOW_MODELS_AVAILABLE and tensorflow_model_manager:
+            try:
+                self.tensorflow_manager = tensorflow_model_manager
+                print(f"🔧 TensorFlow Manager loaded")
+            except Exception as e:
+                print(f"⚠️ TensorFlow Manager failed to load: {e}")
+                self.tensorflow_manager = None
+        else:
+            print(f"⚠️ TensorFlow Manager not available")
+        
         # Model storage
         self.available_models: Dict[str, ModelConfig] = {}
         self.loaded_models: Dict[str, ModelConfig] = {}

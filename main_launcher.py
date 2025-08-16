@@ -130,15 +130,19 @@ def check_system_status() -> Dict[str, Any]:
         print("   ✅ Full Version: Available")
         
         # Show enhanced features
-        if enhanced_info.get("enhanced_features", {}).get("ai_agents_available"):
+        ai_agents_info = enhanced_info.get("ai_agents", {})
+        if ai_agents_info.get("available"):
             print("   🤖 AI Agents: Available")
         else:
-            print("   ⚠️ AI Agents: Not configured")
+            reason = ai_agents_info.get("reason", "Not configured")
+            print(f"   ⚠️ AI Agents: {reason}")
             
-        if enhanced_info.get("enhanced_features", {}).get("tensorflow_models_available"):
+        tf_models_info = enhanced_info.get("tensorflow_models", {})
+        if tf_models_info.get("available"):
             print("   🔧 TensorFlow Models: Available")
         else:
-            print("   ⚠️ TensorFlow Models: Not available")
+            reason = tf_models_info.get("reason", "Not available")
+            print(f"   ⚠️ TensorFlow Models: {reason}")
             
     except Exception as e:
         status["versions"]["full"]["errors"].append(str(e))
@@ -251,23 +255,33 @@ def get_user_choice(status: Dict[str, Any]) -> Optional[str]:
     choices = []
     
     # Option 1: Full Version with detailed explanation
-    if status["versions"]["full"]["available"] and status["python_compatible"]:
+    if status["versions"]["full"]["available"]:
         choices.append(("1", "full", "🔥 FULL VERSION - Complete AI Experience"))
         print("   1. 🔥 FULL VERSION - Complete AI Experience")
         print("      • GPU-optimized deep learning models")
         print("      • Advanced semantic search with transformers")
         print("      • Multi-modal AI (vision + language)")
-        print("      • OpenAI GPT-4 & Anthropic Claude integration")
-        print("      • TensorFlow Hub pre-trained models")
-        print("      • Real-time video analysis")
-        print("      ✅ Status: Ready to launch")
-        print()
-    elif status["versions"]["full"]["available"] and not status["python_compatible"]:
-        print("   1. 🔥 FULL VERSION - ⚠️ Limited Compatibility")
-        print("      • Your Python version may cause issues")
-        print("      • Some AI packages might not work properly")
-        print("      • Consider using Python 3.10.x for best experience")
-        choices.append(("1", "full", "🔥 FULL VERSION (Limited)"))
+        
+        # Show what's actually available
+        ai_agents = status["versions"]["full"].get("ai_agents", {})
+        tf_models = status["versions"]["full"].get("tensorflow_models", {})
+        
+        if ai_agents.get("available"):
+            print("      • ✅ OpenAI GPT-4 & Anthropic Claude integration")
+        else:
+            print("      • ⚠️ AI Agents: Available but not configured (API keys needed)")
+            
+        if tf_models.get("available"):
+            print("      • ✅ TensorFlow Hub pre-trained models")
+        else:
+            print("      • ⚠️ TensorFlow Hub: Available but not fully loaded")
+            
+        print("      • ✅ Real-time video analysis with CLIP/BLIP")
+        
+        if status["python_compatible"]:
+            print("      ✅ Status: Ready to launch")
+        else:
+            print("      ⚠️ Status: Limited Python compatibility")
         print()
     else:
         print("   1. 🔥 FULL VERSION - ❌ Not Available")

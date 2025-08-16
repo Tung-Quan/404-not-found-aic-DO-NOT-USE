@@ -45,12 +45,18 @@ logger = logging.getLogger(__name__)
 class EnhancedAIVideoSearchEngine:
     """Enhanced AI search engine với hybrid model support"""
     
-    def __init__(self, index_dir: str = "index"):
+    def __init__(self, index_dir: str = "index", model_manager: Optional[HybridModelManager] = None):
         self.index_dir = Path(index_dir)
         self.index_dir.mkdir(exist_ok=True)
         
-        # Initialize hybrid model manager
-        self.model_manager = HybridModelManager()
+        # Initialize model manager
+        if model_manager is not None:
+            self.model_manager = model_manager
+            print("✅ Using provided model manager")
+        else:
+            print("🔄 Initializing new model manager...")
+            self.model_manager = HybridModelManager()
+            print("✅ Model manager initialized")
         
         # Active models tracking
         self.active_models: Dict[str, str] = {
