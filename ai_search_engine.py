@@ -1027,3 +1027,6 @@ def demo_enhanced_search():
 
 if __name__ == "__main__":
     demo_enhanced_search()
+
+# Aliases for backward compatibility
+VideoSearchEngine = EnhancedAIVideoSearchEngine

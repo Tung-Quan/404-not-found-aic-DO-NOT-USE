@@ -760,3 +760,6 @@ def test_enhanced_manager():
     
     print("=" * 70)
     print("✅ Enhanced manager test completed")
+
+# Aliases for backward compatibility
+EnhancedHybridManager = EnhancedHybridModelManager

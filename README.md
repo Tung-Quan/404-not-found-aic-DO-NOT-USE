@@ -25,6 +25,8 @@ Enhanced AI Video Search System là hệ thống tìm kiếm video thông minh t
 - 🤖 **AI Agents Integration**: OpenAI GPT-4 Vision, Anthropic Claude, Local BLIP models
 - 🧠 **TensorFlow Hub Models**: 15+ pre-trained models với GPU optimization
 - ⚡ **GPU Acceleration**: RTX 3060 optimization với CUDA 11.8/12.4
+- 🎯 **Vector Embeddings**: CLIP, Chinese-CLIP, SigLIP cho tìm kiếm thông minh
+- 🔍 **FAISS Search**: Similarity search với hàng triệu vectors
 - 🔄 **Intelligent Fallback**: Auto-switching từ Full → Lite mode
 - 🌍 **Cross-Platform**: Windows, Linux, macOS
 - 🎯 **Unified Launcher**: Một launcher cho tất cả modes
@@ -33,29 +35,498 @@ Enhanced AI Video Search System là hệ thống tìm kiếm video thông minh t
 ### 🎬 Video Search Capabilities
 - **Semantic Search**: Tìm kiếm bằng mô tả tự nhiên
 - **Frame Extraction**: Trích xuất frames từ video với tốc độ 1fps
-- **Vector Similarity**: FAISS-powered similarity search
-- **Multi-language**: Hỗ trợ tiếng Việt và tiếng Anh
+- **Vector Similarity**: FAISS-powered similarity search với CLIP embeddings
+- **Multi-language**: Hỗ trợ tiếng Việt và tiếng Anh (Chinese-CLIP optimized)
 - **Real-time Analysis**: Phân tích frame real-time với AI
+- **Cross-modal Search**: Text-to-Image và Image-to-Image search
 
 ---
 
-## 🚀 Quick Start
+## 🤖 Hệ Thống Manager Files - Giải Thích Chi Tiết
 
-### � Step 1: Check & Setup Optimal Python Version
+### 📋 **Tổng Quan Các File Manager**
 
-**RECOMMENDED: Python 3.10.x for best AI compatibility**
+Hệ thống AI Video Search sử dụng **kiến trúc modular** với nhiều manager files chuyên biệt:
+
+#### 🎯 **1. Enhanced Hybrid Manager** (`enhanced_hybrid_manager.py`)
+- **Chức năng**: Manager chính điều phối tất cả AI models
+- **Kết hợp**: PyTorch (CLIP, BLIP) + TensorFlow + AI Agents
+- **GPU Optimization**: Tối ưu cho RTX 3060 với CUDA
+- **Smart Switching**: Tự động chuyển đổi giữa models dựa trên task
+
+```python
+# Sử dụng Enhanced Hybrid Manager
+from enhanced_hybrid_manager import EnhancedHybridModelManager
+
+manager = EnhancedHybridModelManager()
+# ✅ Tự động load models phù hợp
+# ✅ Quản lý GPU memory thông minh
+# ✅ Fallback khi model lỗi
+```
+
+#### 🔧 **2. TensorFlow Model Manager** (`tensorflow_model_manager.py`)
+- **15+ TensorFlow Hub models**: Classification, Object Detection, Text Embedding
+- **Models**: MobileNet, EfficientNet, SSD, Faster R-CNN, Universal Sentence Encoder
+- **GPU Support**: Tự động detect và sử dụng GPU
+- **Batch Processing**: Xử lý nhiều images cùng lúc
+
+```python
+# TensorFlow Models cho Computer Vision
+from tensorflow_model_manager import TensorFlowModelManager
+
+tf_manager = TensorFlowModelManager()
+# Object detection: SSD MobileNet, Faster R-CNN
+# Image features: MobileNet V2, EfficientNet
+# Text embedding: Universal Sentence Encoder
+```
+
+#### 🤖 **3. AI Agent Manager** (`ai_agent_manager.py`)
+- **OpenAI GPT-4 Vision**: Phân tích images với natural language
+- **Anthropic Claude**: Generate search queries thông minh
+- **Local BLIP**: Image captioning offline (không cần API keys)
+- **Smart Fallback**: Tự động chuyển từ API models về local models
+
+```python
+# AI Agents cho Advanced Analysis
+from ai_agent_manager import AIAgentManager
+
+agent_manager = AIAgentManager()
+# GPT-4 Vision: "Mô tả chi tiết người trong ảnh"
+# Claude: Tối ưu search queries
+# Local BLIP: Tạo captions offline
+```
+
+#### 🎬 **4. Enhanced Video Processor** (`src/core/enhanced_video_processor.py`)
+- **Frame Extraction**: Trích xuất frames từ video (1fps)
+- **Batch Processing**: Xử lý nhiều videos cùng lúc
+- **Metadata Generation**: Tạo thông tin chi tiết cho mỗi frame
+- **Progress Tracking**: Hiển thị tiến độ real-time
+
+#### 🔍 **5. AI Search Engine** (`ai_search_engine.py`)
+- **Vector Search**: FAISS similarity search với millions vectors
+- **Cross-modal**: Text-to-Image và Image-to-Image search
+- **Chinese-CLIP**: Tối ưu cho tiếng Việt
+- **Intelligent Ranking**: AI-powered result ranking
+
+### 🚀 **Tại Sao Cần Nhiều Managers?**
+
+| Manager | Chuyên môn | Lợi ích |
+|---------|------------|---------|
+| **Hybrid Manager** | Điều phối tổng thể | Tối ưu performance, smart fallback |
+| **TensorFlow Manager** | Computer Vision | 15+ models chuyên nghiệp, GPU optimized |
+| **AI Agent Manager** | Natural Language | GPT-4 Vision, Claude intelligence |
+| **Video Processor** | Video Processing | Parallel processing, metadata |
+| **Search Engine** | Similarity Search | FAISS optimization, cross-modal |
+
+### 📱 **Workflow Hoạt Động:**
+1. **Video Input** → Enhanced Video Processor (extract frames)
+2. **Frames** → TensorFlow Manager (extract features) 
+3. **Features** → Enhanced Hybrid Manager (create embeddings)
+4. **Search Query** → AI Agent Manager (optimize query)
+5. **Search** → AI Search Engine (FAISS similarity)
+6. **Results** → AI Agent Manager (analyze & rank)
+
+---
+
+## 🚀 Quick Start - Hướng Dẫn Cho Người Mới
+
+---
+
+## 🚀 Quick Start - Hướng Dẫn Cho Người Mới
+
+> **💡 Lưu ý**: Hệ thống này phức tạp với nhiều AI components. Hãy làm theo từng bước để có trải nghiệm tốt nhất!
+
+### 🎯 **BƯỚC 1: Kiểm Tra Yêu Cầu Hệ Thống**
+
+#### **A. Kiểm Tra Python Version (QUAN TRỌNG!)**
+```bash
+python --version
+# ✅ TỐT NHẤT: Python 3.10.x (100% compatibility)
+# ✅ TỐT: Python 3.9.x (99% compatibility) 
+# ⚠️ CHẤP NHẬN: Python 3.11.x (95% compatibility)
+# ❌ TRÁNH: Python 3.12+ (nhiều packages chưa hỗ trợ)
+```
+
+**Nếu không có Python 3.10:**
+```bash
+# Windows: Download từ python.org hoặc
+winget install Python.Python.3.10
+
+# Linux/Ubuntu:
+sudo apt update
+sudo apt install python3.10 python3.10-venv python3.10-dev
+
+# macOS:
+brew install python@3.10
+```
+
+#### **B. Kiểm Tra GPU (Tùy Chọn)**
+```bash
+# Kiểm tra NVIDIA GPU
+nvidia-smi
+
+# Nếu có GPU: Hệ thống sẽ nhanh hơn 5-10x
+# Nếu không có GPU: Vẫn chạy được nhưng chậm hơn
+```
+
+### 🛠️ **BƯỚC 2: Cài Đặt Tự Động (KHUYẾN NGHỊ)**
+
+#### **Option A: One-Click Setup (Dễ nhất)**
+```bash
+# Windows
+setup_optimal.bat
+
+# Linux/macOS
+chmod +x setup_optimal.sh
+./setup_optimal.sh
+
+# ✅ Script sẽ tự động:
+# - Tạo virtual environment với Python 3.10
+# - Cài đặt tất cả dependencies
+# - Kiểm tra GPU compatibility
+# - Download AI models
+# - Khởi động hệ thống
+```
+
+#### **Option B: Manual Setup (Chi tiết hơn)**
+```bash
+# 1. Clone repository (nếu chưa có)
+git clone <repository-url>
+cd Project
+
+# 2. Tạo Virtual Environment với Python 3.10
+py -3.10 -m venv .venv  # Windows
+python3.10 -m venv .venv  # Linux/macOS
+
+# 3. Activate Virtual Environment
+.venv\Scripts\activate  # Windows
+source .venv/bin/activate  # Linux/macOS
+
+# 4. Verify Python version trong venv
+python --version  # Phải là 3.10.x
+
+# 5. Install dependencies
+python setup.py
+```
+
+### 🔧 **BƯỚC 3: Kiểm Tra Cài Đặt**
 
 ```bash
-# Check your current Python version
-python --version
+# Test hệ thống cơ bản
+python verify_system.py
 
-# 🥇 BEST: If you have Python 3.10.x
-python --version  # Should show 3.10.x
-
-# ⚠️ If you have Python 3.13/3.12/other versions:
-# Download Python 3.10.11 from: https://www.python.org/downloads/release/python-31011/
-# Install alongside your current Python
+# Expected output:
+# ✅ TensorFlow 2.17.1
+# ✅ PyTorch 2.7.1+cu118  
+# ✅ sentence-transformers 5.1.0
+# ✅ GPU: NVIDIA GeForce RTX 3060 (nếu có)
+# ✅ VideoSearchEngine
+# ✅ EnhancedHybridManager
+# ✅ TensorFlowModelManager
 ```
+
+### 🚀 **BƯỚC 4: Khởi Động Hệ Thống**
+
+#### **Method 1: Universal Launcher (KHUYẾN NGHỊ)**
+```bash
+python main_launcher.py
+
+# Menu sẽ hiện:
+# 1. 🔥 Full AI Mode (GPU + AI Agents + TensorFlow) - BEST
+# 2. 💡 Lite Mode (CPU only, basic features)
+# 3. 📊 Performance Comparison
+# 4. 🔧 System Diagnostics
+```
+
+#### **Method 2: Specific Modes**
+```bash
+# Full AI Mode (requires GPU + API keys)
+python ai_search_engine.py
+
+# Lite Mode (chỉ cần CPU)
+python ai_search_lite.py
+
+# TensorFlow Models only
+python tensorflow_model_manager.py
+
+# AI Agents only  
+python ai_agent_manager.py
+```
+
+#### **Method 3: Web Interface**
+```bash
+# Start API server
+cd api
+python app.py
+
+# Mở browser: http://localhost:8000
+# Features: Upload video, search frames, AI analysis
+```
+
+### 🔑 **BƯỚC 5: Cấu Hình API Keys (Tùy Chọn)**
+
+Để sử dụng **AI Agents** (GPT-4 Vision, Claude):
+
+```bash
+# 1. Copy template
+cp .env.example .env
+
+# 2. Edit .env file
+OPENAI_API_KEY=sk-your-openai-key-here
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
+
+# 3. Test AI Agents
+python -c "from ai_agent_manager import AIAgentManager; print('🤖 AI Agents ready')"
+```
+
+**Lưu ý**: Hệ thống vẫn hoạt động **HOÀN TOÀN** mà không cần API keys nhờ **local models**!
+
+### 📺 **BƯỚC 6: Test với Video Sample**
+
+```bash
+# 1. Put video file vào thư mục videos/
+cp your_video.mp4 videos/
+
+# 2. Extract frames
+python -c "
+from enhanced_hybrid_manager import EnhancedHybridModelManager
+manager = EnhancedHybridModelManager()
+manager.process_video('videos/your_video.mp4')
+"
+
+# 3. Search frames
+python -c "
+manager.search_by_text('người đàn ông đang nói', top_k=5)
+"
+```
+
+### 🚨 **Xử Lý Lỗi Thường Gặp**
+
+#### **1. Import Error: "No module named ..."**
+```bash
+# Solution: Reinstall dependencies
+pip install --upgrade -r config/requirements.txt
+python setup.py
+```
+
+#### **2. CUDA Error: "GPU not available"**
+```bash
+# Check GPU
+nvidia-smi
+
+# Reinstall PyTorch with CUDA
+pip uninstall torch torchvision
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+```
+
+#### **3. TensorFlow Error: "Could not load dynamic library"**
+```bash
+# Reinstall TensorFlow
+pip uninstall tensorflow tensorflow-intel
+pip install tensorflow==2.17.1 tf-keras==2.17.0
+```
+
+#### **4. Memory Error: "CUDA out of memory"**
+```bash
+# Giảm batch size hoặc dùng CPU mode
+python ai_search_lite.py  # CPU mode
+```
+
+### 📊 **Performance Expectations**
+
+| Mode | GPU | Speed | Quality | Use Case |
+|------|-----|-------|---------|----------|
+| **Full AI** | RTX 3060 | Very Fast | Excellent | Production |
+| **Full AI** | CPU | Slow | Excellent | Development |
+| **Lite** | Any | Fast | Good | Quick testing |
+
+### 🎯 **Next Steps sau khi cài đặt**
+
+1. **Upload videos**: Copy vào `videos/` folder
+2. **Process videos**: `python main_launcher.py` → Option 1
+3. **Search frames**: Use web interface tại `http://localhost:8000`
+4. **Add API keys**: Để unlock GPT-4 Vision & Claude
+5. **Optimize settings**: Edit `config/requirements.txt` nếu cần
+
+### 📱 **Web Interface Features**
+
+Sau khi khởi động `python api/app.py`:
+
+- **📹 Video Upload**: Drag & drop video files  
+- **🔍 Search**: "tìm người đàn ông" hoặc "find a man"
+- **🤖 AI Analysis**: GPT-4 Vision analysis cho frames
+- **📊 Similarity**: Visual similarity search
+- **🎯 Filters**: Filter by time, confidence, etc.
+
+**🎉 Chúc mừng! Bạn đã setup thành công AI Video Search System!**
+
+---
+
+## 🔧 Troubleshooting & FAQ cho Người Mới
+
+### ❓ **Câu Hỏi Thường Gặp**
+
+#### **Q1: Hệ thống có cần GPU không?**
+**A**: Không bắt buộc! 
+- ✅ **Có GPU (RTX 3060)**: Nhanh hơn 5-10x, full features
+- ✅ **Không có GPU**: Vẫn chạy đầy đủ, chỉ chậm hơn
+- 💡 **Automatic fallback**: Hệ thống tự động chuyển CPU mode
+
+#### **Q2: Cần API keys để sử dụng không?**
+**A**: Không bắt buộc!
+- 🆓 **Không có API keys**: Dùng local models (BLIP, CLIP)
+- 🔥 **Có API keys**: Unlock GPT-4 Vision + Claude (chất lượng cao hơn)
+- 🎯 **Recommended**: Start free, upgrade sau
+
+#### **Q3: Hệ thống hỗ trợ tiếng Việt không?**
+**A**: Có!
+- ✅ **Chinese-CLIP**: Tối ưu cho tiếng Việt
+- ✅ **Multilingual models**: Universal Sentence Encoder
+- ✅ **Natural queries**: "tìm người đàn ông", "cô gái đang cười"
+
+#### **Q4: Cần bao nhiêu dung lượng?**
+- **Models**: ~2-5GB (download tự động)
+- **Videos**: Tùy thuộc bạn upload
+- **RAM**: 8GB minimum, 16GB recommended
+- **Storage**: 10GB free space
+
+### 🚨 **Lỗi Thường Gặp & Cách Fix**
+
+#### **ERROR 1: "Python not found"**
+```bash
+# Symptom: 'python' is not recognized
+# Fix Windows:
+py --version  # Use 'py' instead of 'python'
+
+# Fix Linux/macOS:
+python3 --version  # Use 'python3'
+```
+
+#### **ERROR 2: "No module named 'tensorflow'"**
+```bash
+# Symptom: Import error after installation
+# Fix:
+pip uninstall tensorflow tensorflow-intel
+pip install tensorflow==2.17.1 tf-keras==2.17.0
+
+# Verify:
+python -c "import tensorflow as tf; print(tf.__version__)"
+```
+
+#### **ERROR 3: "CUDA out of memory"**
+```bash
+# Symptom: GPU memory error
+# Fix 1: Use CPU mode
+python ai_search_lite.py
+
+# Fix 2: Reduce batch size
+# Edit: Enhanced model settings in config
+```
+
+#### **ERROR 4: "Access denied / Permission error"**
+```bash
+# Symptom: Can't create files/folders
+# Fix Windows: Run as Administrator
+# Fix Linux/macOS: 
+sudo chmod +x setup_optimal.sh
+```
+
+#### **ERROR 5: "Port already in use"**
+```bash
+# Symptom: Web server won't start
+# Fix: Kill existing process
+# Windows:
+netstat -ano | findstr :8000
+taskkill /PID <process_id> /F
+
+# Linux/macOS:
+lsof -ti:8000 | xargs kill -9
+```
+
+### 💡 **Performance Tips**
+
+#### **🚀 Tăng Tốc Độ:**
+1. **Use GPU**: Cài CUDA drivers nếu có NVIDIA GPU
+2. **Close browsers**: Chrome/Edge ăn RAM nhiều  
+3. **SSD storage**: Đặt project trên SSD, không HDD
+4. **Increase RAM**: 16GB+ cho smooth experience
+
+#### **💾 Tiết Kiệm Memory:**
+1. **Use Lite mode**: `python ai_search_lite.py`
+2. **Close unused apps**: Discord, games, streaming
+3. **Batch processing**: Process ít videos cùng lúc
+4. **Clear cache**: Delete `models_cache/` nếu cần
+
+### 🎯 **Workflow Recommended cho Người Mới**
+
+#### **Week 1: Basic Setup**
+```bash
+# Day 1: Install & verify
+python setup.py
+python verify_system.py
+
+# Day 2-3: Test with sample video
+python main_launcher.py  # Choose Lite mode
+
+# Day 4-7: Explore web interface
+python api/app.py
+# Open: http://localhost:8000
+```
+
+#### **Week 2: Advanced Features**  
+```bash
+# Add API keys for AI Agents
+# Test Full AI mode
+# Process multiple videos
+# Customize search queries
+```
+
+### 📞 **Getting Help**
+
+#### **🔍 Debug Commands:**
+```bash
+# Check system status
+python verify_system.py
+
+# Check GPU
+python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}')"
+
+# Check models
+python -c "from enhanced_hybrid_manager import EnhancedHybridModelManager; m=EnhancedHybridModelManager(); print('✅ Ready')"
+
+# Check API
+curl http://localhost:8000/health
+```
+
+#### **📋 Log Files:**
+- `logs/`: Application logs
+- `models_cache/`: Downloaded models  
+- `index/`: Generated indexes
+- `frames/`: Extracted video frames
+
+#### **🆘 Common Solutions:**
+1. **Restart Python environment**: Exit terminal, reactivate venv
+2. **Clear cache**: Delete `__pycache__/` folders
+3. **Reinstall dependencies**: `pip install --force-reinstall -r config/requirements.txt`
+4. **Fresh start**: Delete `.venv`, recreate từ đầu
+
+### 🎓 **Learning Path**
+
+#### **Beginner → Intermediate:**
+1. ✅ **Install successfully** (`python verify_system.py` passes)
+2. ✅ **Process 1 video** (extract frames, search)
+3. ✅ **Use web interface** (upload, search, results)
+4. ✅ **Understand models** (CLIP, TensorFlow, AI Agents)
+
+#### **Intermediate → Advanced:**
+1. ✅ **Add API keys** (GPT-4 Vision, Claude)
+2. ✅ **Custom models** (modify model configs)  
+3. ✅ **Batch processing** (multiple videos)
+4. ✅ **API integration** (build your own frontend)
+
+**💪 Bạn ready để bắt đầu AI Video Search journey!**
+
+---
 
 ### 📦 Step 2: Create Virtual Environment with Optimal Python
 
@@ -83,6 +554,91 @@ source .venv/bin/activate
 
 # Verify you're using Python 3.10 in venv
 python --version  # Should show 3.10.x
+```
+
+### 🍎 Step 2b: macOS Specific Setup
+
+#### **Option 1: Quick Setup with Homebrew (Recommended)**
+
+```bash
+# Install Homebrew if you don't have it
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Python 3.10 specifically
+brew install python@3.10
+
+# Clone and setup
+git clone <repository>
+cd Project
+
+# Make setup script executable
+chmod +x setup_optimal_macos.sh
+
+# Run automated setup
+./setup_optimal_macos.sh
+
+# The script will:
+# ✅ Check for Python 3.10
+# ✅ Create virtual environment  
+# ✅ Install all dependencies
+# ✅ Setup AI models
+# ✅ Launch the system
+```
+
+#### **Option 2: Manual macOS Setup**
+
+```bash
+# 1. Install Python 3.10 (if not available)
+brew install python@3.10
+
+# 2. Create project directory
+git clone <repository>
+cd Project
+
+# 3. Create virtual environment with Python 3.10
+python3.10 -m venv .venv
+
+# 4. Activate virtual environment
+source .venv/bin/activate
+
+# 5. Upgrade pip
+pip install --upgrade pip
+
+# 6. Run setup
+python setup.py
+
+# 7. Launch system
+python main_launcher.py
+```
+
+#### **🚨 macOS Common Issues & Solutions**
+
+**Issue 1: "Command not found: python3.10"**
+```bash
+# Solution: Add Homebrew to PATH
+echo 'export PATH="/opt/homebrew/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Issue 2: "Permission denied"**
+```bash
+# Solution: Make scripts executable
+chmod +x setup_optimal_macos.sh
+chmod +x scripts/*.py
+```
+
+**Issue 3: "No module named '_ssl'"**
+```bash
+# Solution: Reinstall Python with SSL support
+brew uninstall python@3.10
+brew install python@3.10
+```
+
+**Issue 4: Apple Silicon (M1/M2) Compatibility**
+```bash
+# For M1/M2 Macs, use optimized packages
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+pip install tensorflow-macos tensorflow-metal
 ```
 
 ### 🚀 Step 3: Complete Auto-Installation
@@ -346,6 +902,160 @@ answer = manager.visual_qa(
 )
 ```
 
+### 🎯 Vector Embedding System
+
+#### **Supported Embedding Models**
+
+| Model | Dimension | Best For | Vietnamese Support |
+|-------|-----------|----------|-------------------|
+| **CLIP Standard** | 512 | General purpose | Basic |
+| **Chinese-CLIP** | 512 | **Vietnamese content** | **Excellent** |
+| **SigLIP Multilingual** | 768 | Cross-language | Very Good |
+
+#### **1. Frame-to-Vector Conversion**
+
+```python
+# Method 1: Chinese-CLIP (Recommended for Vietnamese)
+python scripts/encode_chinese_clip.py
+
+# Method 2: Standard CLIP  
+python scripts/build_faiss.py
+
+# Check embedding status
+python scripts/check_embedding_status.py
+```
+
+**Output:**
+- **Embeddings**: `index/embeddings/frames_chinese_clip.f16.mmap`
+- **Metadata**: `index/meta.parquet` 
+- **Index**: FAISS vector database
+
+#### **2. FAISS Vector Search**
+
+```python
+# Build FAISS index for fast similarity search
+python scripts/build_faiss_chinese_clip.py
+
+# Available FAISS indexes:
+# - Flat IP: Exact search, slower but accurate
+# - IVF: Approximate search, faster for large datasets
+```
+
+#### **3. Cross-Modal Search API**
+
+```python
+from enhanced_hybrid_manager import EnhancedHybridModelManager
+
+manager = EnhancedHybridModelManager()
+
+# Text → Image search (Natural language queries)
+results = manager.search_by_text(
+    query="người phụ nữ đang nói chuyện điện thoại",  # Vietnamese
+    top_k=10,
+    model="chinese-clip"
+)
+
+# Image → Image search (Visual similarity)
+similar_frames = manager.search_by_image(
+    image_path="query_frame.jpg",
+    top_k=5,
+    similarity_threshold=0.8
+)
+
+# Advanced semantic search with filters
+filtered_results = manager.advanced_search(
+    query="meeting room presentation",
+    filters={
+        "video_name": ["business_meeting.mp4"],
+        "timestamp_range": (100, 500),  # seconds
+        "min_confidence": 0.7
+    }
+)
+```
+
+#### **4. Performance Optimization**
+
+```python
+# Batch processing for large datasets
+from scripts.encode_chinese_clip import batch_encode_frames
+
+# Process 1000+ frames efficiently
+embeddings = batch_encode_frames(
+    frame_paths=frame_list,
+    batch_size=32,  # Adjust based on GPU memory
+    device="cuda"   # or "cpu"
+)
+
+# Memory-mapped storage for large datasets
+import numpy as np
+
+# Load embeddings without loading full array into memory
+embeddings = np.memmap(
+    'index/embeddings/frames_chinese_clip.f16.mmap',
+    dtype='float16',
+    mode='r',
+    shape=(num_frames, 512)
+)
+```
+
+#### **5. Real-time Search Demo**
+
+```python
+from ai_search_lite import test_lite_search_engine
+
+# Test the complete embedding pipeline
+test_lite_search_engine()
+
+# Expected output:
+# ✅ AI Search Engine Lite initialized
+# 📊 Indexed frames: 202
+# 🔍 Testing indexing...
+# 🎨 Testing color search...
+# ✅ Found 5 frames matching color
+```
+
+#### **6. Web API Integration**
+
+```python
+# Start embedding-powered API server
+cd api && python app.py
+
+# API endpoints:
+# POST /search/text - Text-to-image search
+# POST /search/image - Image-to-image search  
+# GET /embeddings/status - Check embedding system status
+```
+
+**API Example:**
+```bash
+# Text search
+curl -X POST "http://localhost:8000/search/text" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "người đàn ông đang thuyết trình", "top_k": 5}'
+
+# Image search  
+curl -X POST "http://localhost:8000/search/image" \
+  -F "image=@query_frame.jpg" \
+  -F "top_k=5"
+```
+
+#### **7. Embedding System Monitoring**
+
+```python
+# Check system status
+python scripts/check_embedding_status.py
+
+# Monitor performance
+from ai_search_lite import SearchEngineMetrics
+
+metrics = SearchEngineMetrics()
+stats = metrics.get_performance_stats()
+
+print(f"Search latency: {stats['avg_search_time']:.3f}s")
+print(f"Index size: {stats['index_size_mb']:.1f} MB") 
+print(f"Total embeddings: {stats['total_vectors']:,}")
+```
+
 ---
 
 ## 📊 System Architecture
@@ -389,9 +1099,9 @@ answer = manager.visual_qa(
 │ Manager     │  │ Models      │                   │ Models      │
 └─────────────┘  └─────────────┘                   └─────────────┘
       │                │                                     │
-      ├─ OpenAI        ├─ MobileNet V2                      ├─ CLIP
-      ├─ Anthropic     ├─ Inception V3                      ├─ BLIP
-      ├─ Local BLIP    ├─ ResNet 50                         └─ Sentence-T
+      ├─ OpenAI        ├─ MobileNet V2                       ├─ CLIP
+      ├─ Anthropic     ├─ Inception V3                       ├─ BLIP
+      ├─ Local BLIP    ├─ ResNet 50                          └─ Sentence-T
       └─ Auto-retry    ├─ Universal SE
                        ├─ Object Detection
                        └─ Text Models
@@ -1886,6 +2596,318 @@ python main_launcher.py
 - **Error Handling**: Better error messages and fallback mechanisms
 - **Installation Process**: More robust dependency resolution
 - **User Guidance**: Clear recommendations based on system capabilities
+
+---
+
+## 🚨 Troubleshooting Guide
+
+### **Common Issues & Solutions**
+
+#### **1. Python Version Issues**
+
+**Problem**: "AI packages incompatible with Python 3.13"
+```bash
+# Solution: Downgrade to Python 3.10
+winget install Python.Python.3.10  # Windows
+brew install python@3.10            # macOS
+
+# Recreate virtual environment
+rm -rf .venv
+python3.10 -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+.venv\Scripts\activate     # Windows
+```
+
+**Problem**: "No module named 'transformers'"
+```bash
+# Solution: Install missing packages
+pip install transformers torch torchvision
+pip install opencv-python pillow numpy
+```
+
+#### **2. GPU & CUDA Issues**
+
+**Problem**: "CUDA out of memory"
+```python
+# Solution 1: Reduce batch size
+BATCH_SIZE = 4  # Instead of 32
+
+# Solution 2: Use CPU fallback
+DEVICE = "cpu"  # In encoding scripts
+
+# Solution 3: Clear GPU cache
+import torch
+torch.cuda.empty_cache()
+```
+
+**Problem**: "CUDA not available"
+```bash
+# Check CUDA installation
+nvidia-smi
+python -c "import torch; print(torch.cuda.is_available())"
+
+# Reinstall PyTorch with CUDA
+pip uninstall torch torchvision
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+```
+
+#### **3. macOS Specific Issues**
+
+**Problem**: "Permission denied" on macOS
+```bash
+# Solution: Fix permissions
+chmod +x setup_optimal_macos.sh
+chmod +x scripts/*.py
+sudo chown -R $(whoami) .
+```
+
+**Problem**: "No module named '_ssl'" on macOS
+```bash
+# Solution: Reinstall Python with SSL
+brew uninstall python@3.10
+brew install python@3.10
+```
+
+**Problem**: Apple Silicon (M1/M2) compatibility
+```bash
+# Use ARM-optimized packages
+pip install torch torchvision
+pip install tensorflow-macos tensorflow-metal
+```
+
+#### **4. Embedding System Issues**
+
+**Problem**: "Embeddings not found"
+```bash
+# Solution: Create embeddings
+python scripts/encode_chinese_clip.py
+python scripts/build_faiss_chinese_clip.py
+
+# Check status
+python scripts/check_embedding_status.py
+```
+
+**Problem**: "FAISS index creation failed"
+```bash
+# Solution: Install FAISS
+pip install faiss-cpu  # For CPU
+pip install faiss-gpu  # For GPU (if supported)
+```
+
+### **Performance Optimization**
+
+#### **For Low-End Hardware**
+```python
+# Reduce model size
+MODEL_SIZE = "base"  # Instead of "large"
+BATCH_SIZE = 4       # Instead of 32
+USE_GPU = False      # Force CPU usage
+```
+
+#### **For High-End Hardware**
+```python
+# Maximize performance
+BATCH_SIZE = 64      # Larger batches
+USE_MIXED_PRECISION = True
+ENABLE_GPU_OPTIMIZATION = True
+```
+
+---
+
+## 🚀 Deployment Guide
+
+### **Production Deployment**
+
+#### **1. Docker Deployment**
+```dockerfile
+# Dockerfile
+FROM python:3.10-slim
+
+WORKDIR /app
+COPY . .
+
+RUN pip install -r requirements.txt
+EXPOSE 8000
+
+CMD ["python", "api/app.py"]
+```
+
+```bash
+# Build and run
+docker build -t ai-video-search .
+docker run -p 8000:8000 -v ./videos:/app/videos ai-video-search
+```
+
+#### **2. Cloud Deployment (AWS/GCP/Azure)**
+
+**AWS EC2:**
+```bash
+# Launch GPU instance (g4dn.xlarge recommended)
+# Install NVIDIA drivers
+sudo apt-get install nvidia-driver-470
+
+# Setup application
+git clone <repository>
+cd Project
+python3.10 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Configure reverse proxy (nginx)
+sudo apt-get install nginx
+# Configure nginx.conf for port 8000
+```
+
+**Google Cloud Platform:**
+```bash
+# Use AI Platform or Compute Engine with GPU
+gcloud compute instances create ai-video-search \
+  --image-family=pytorch-latest-gpu \
+  --machine-type=n1-standard-4 \
+  --accelerator=type=nvidia-tesla-k80,count=1
+```
+
+#### **3. Load Balancing for High Traffic**
+```python
+# Use multiple worker processes
+import gunicorn
+
+# gunicorn_config.py
+bind = "0.0.0.0:8000"
+workers = 4
+worker_class = "uvicorn.workers.UvicornWorker"
+worker_connections = 1000
+```
+
+### **Monitoring & Logging**
+
+```python
+# Add to main application
+import logging
+from prometheus_client import Counter, Histogram
+
+# Metrics
+search_requests = Counter('search_requests_total', 'Total search requests')
+search_duration = Histogram('search_duration_seconds', 'Search duration')
+
+# Logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('logs/app.log'),
+        logging.StreamHandler()
+    ]
+)
+```
+
+---
+
+## 📖 Best Practices
+
+### **Development Workflow**
+
+1. **Setup Development Environment**
+```bash
+# Use Python 3.10 for best compatibility
+python3.10 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+2. **Code Quality**
+```bash
+# Install development tools
+pip install black flake8 mypy pytest
+
+# Format code
+black .
+
+# Check code quality
+flake8 .
+mypy .
+
+# Run tests
+pytest tests/
+```
+
+3. **Git Workflow**
+```bash
+# Feature development
+git checkout -b feature/new-embedding-model
+# Make changes
+git add .
+git commit -m "feat: add new embedding model support"
+git push origin feature/new-embedding-model
+```
+
+### **Performance Best Practices**
+
+#### **Memory Management**
+```python
+# Use memory-mapped files for large datasets
+embeddings = np.memmap('embeddings.mmap', dtype='float16', mode='r')
+
+# Clear unused variables
+del large_variable
+import gc; gc.collect()
+
+# Use generators for large datasets
+def frame_generator(video_path):
+    for frame in extract_frames(video_path):
+        yield frame
+```
+
+#### **GPU Optimization**
+```python
+# Use appropriate data types
+embeddings = embeddings.half()  # float16 instead of float32
+
+# Batch processing
+def process_batch(frames, batch_size=32):
+    for i in range(0, len(frames), batch_size):
+        batch = frames[i:i+batch_size]
+        yield process_frames(batch)
+```
+
+### **Security Considerations**
+
+1. **API Security**
+```python
+# Add rate limiting
+from slowapi import Limiter
+limiter = Limiter(key_func=lambda: "global")
+
+@app.post("/search")
+@limiter.limit("10/minute")
+async def search_endpoint():
+    pass
+```
+
+2. **Input Validation**
+```python
+from pydantic import BaseModel, validator
+
+class SearchRequest(BaseModel):
+    query: str
+    top_k: int = 10
+    
+    @validator('query')
+    def query_length(cls, v):
+        if len(v) > 500:
+            raise ValueError('Query too long')
+        return v
+```
+
+3. **Environment Variables**
+```bash
+# Store sensitive data in .env
+OPENAI_API_KEY=your_key_here
+DATABASE_URL=postgresql://user:pass@localhost/db
+SECRET_KEY=your_secret_key
+```
+
+---
 
 #### [2.0.0] - 2025-08-15 - TensorFlow Hub Integration
 
