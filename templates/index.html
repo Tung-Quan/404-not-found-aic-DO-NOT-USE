@@ -93,6 +93,33 @@
             cursor: not-allowed;
         }
         
+        .model-selector {
+            margin-bottom: 20px;
+        }
+        
+        .model-selector label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+        
+        .model-select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1em;
+            background: white;
+            transition: border-color 0.3s;
+        }
+        
+        .model-select:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+        
         .suggestions {
             display: flex;
             gap: 10px;
@@ -212,6 +239,12 @@
         .result-timestamp {
             color: #666;
             font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+        
+        .result-frame {
+            color: #888;
+            font-size: 0.85em;
             margin-bottom: 15px;
         }
         
@@ -300,6 +333,16 @@
         </div>
         
         <div class="search-section">
+            <div class="model-selector">
+                <label for="modelSelect">🤖 Select AI Model:</label>
+                <select id="modelSelect" class="model-select">
+                    <option value="clip_vit_base">CLIP ViT Base - Best for general image-text matching</option>
+                    <option value="clip_vit_large">CLIP ViT Large - Higher accuracy, slower performance</option>
+                    <option value="chinese_clip">Chinese CLIP - Optimized for Chinese/Vietnamese text</option>
+                    <option value="sentence_transformers">Sentence Transformers - Pure text embedding</option>
+                </select>
+            </div>
+            
             <form id="searchForm" class="search-form">
                 <input 
                     type="text" 
@@ -331,6 +374,23 @@
     </div>
 
     <script>
+        // Utility function to format timestamp
+        function formatTimestamp(seconds) {
+            if (!seconds || seconds === 0) {
+                return '0:00';
+            }
+            
+            const hours = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+        
         const searchForm = document.getElementById('searchForm');
         const searchInput = document.getElementById('searchInput');
         const searchBtn = document.getElementById('searchBtn');
@@ -360,7 +420,20 @@
             searchBtn.textContent = '🔄 Searching...';
             
             try {
-                const response = await fetch(`/search?q=${encodeURIComponent(query)}&topk=12`);
+                const selectedModel = document.getElementById('modelSelect').value;
+                
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        top_k: 12,
+                        model: selectedModel
+                    })
+                });
+                
                 const data = await response.json();
                 
                 // Hide loading
@@ -387,29 +460,33 @@
             resultsSection.style.display = 'block';
             
             // Search info
-            const analysis = data.analysis;
+            const analysis = data.analysis || {};
+            const selectedModel = document.getElementById('modelSelect').value;
+            const modelNames = {
+                'clip_vit_base': 'CLIP ViT Base',
+                'clip_vit_large': 'CLIP ViT Large', 
+                'chinese_clip': 'Chinese CLIP',
+                'sentence_transformers': 'Sentence Transformers'
+            };
+            
             searchInfo.innerHTML = `
                 <h3>🔍 Search Results for "${data.query}"</h3>
                 <div class="info-grid">
                     <div class="info-item">
+                        <div class="info-label">🤖 AI Model</div>
+                        <div class="info-value">${modelNames[selectedModel] || data.model || selectedModel}</div>
+                    </div>
+                    <div class="info-item">
                         <div class="info-label">⏱️ Search Time</div>
-                        <div class="info-value">${data.search_time_ms.toFixed(1)}ms</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">🌐 Language</div>
-                        <div class="info-value">${analysis.language}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">📋 Topics</div>
-                        <div class="info-value">${analysis.topics.join(', ') || 'General'}</div>
+                        <div class="info-value">${(data.search_time_ms || 0).toFixed(1)}ms</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">📊 Results</div>
-                        <div class="info-value">${data.total_results}</div>
+                        <div class="info-value">${data.total_results || data.total || 0}</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">⚖️ Weights</div>
-                        <div class="info-value">Visual ${data.weights.alpha.toFixed(1)} | Text ${data.weights.beta.toFixed(1)}</div>
+                        <div class="info-label">📦 Dataset</div>
+                        <div class="info-value">${data.dataset || 'Default'}</div>
                     </div>
                 </div>
             `;
@@ -426,14 +503,28 @@
                 return;
             }
             
-            resultsGrid.innerHTML = data.results.map(result => `
+            resultsGrid.innerHTML = data.results.map(result => {
+                // Extract video name from frame_path if video_name is Unknown
+                let videoName = result.video_name || result.video || 'Unknown Video';
+                if (videoName === 'Unknown' || videoName === 'Unknown Video') {
+                    if (result.frame_path) {
+                        // Extract from path like "frames\good willhunting\frame_000285.jpg"
+                        const pathParts = result.frame_path.split(/[\\\/]/);
+                        if (pathParts.length >= 2) {
+                            videoName = pathParts[pathParts.length - 2]; // Get folder name
+                        }
+                    }
+                }
+                
+                return `
                 <div class="result-card">
                     <div class="result-header">
-                        <div class="result-score">${(result.final_score * 100).toFixed(1)}%</div>
+                        <div class="result-score">${((result.final_score || result.similarity_score || result.similarity || 0) * 100).toFixed(1)}%</div>
                     </div>
                     
-                    <div class="result-video">${result.video}</div>
-                    <div class="result-timestamp">⏰ ${result.time_formatted}</div>
+                    <div class="result-video">🎬 ${videoName}</div>
+                    <div class="result-timestamp">⏰ ${formatTimestamp(result.timestamp || 0)}</div>
+                    ${result.frame_number ? `<div class="result-frame">🎞️ Frame #${result.frame_number}</div>` : ''}
                     
                     ${result.title ? `<div class="result-title">"${result.title}"</div>` : ''}
                     
@@ -444,11 +535,11 @@
                     ` : ''}
                     
                     <div class="result-scores">
-                        <div class="score-item">👁️ Visual: <span class="score-value">${(result.visual_score * 100).toFixed(1)}%</span></div>
-                        <div class="score-item">📝 Text: <span class="score-value">${(result.text_score * 100).toFixed(1)}%</span></div>
+                        <div class="score-item">👁️ Visual: <span class="score-value">${((result.visual_score || result.similarity_score || result.similarity || 0) * 100).toFixed(1)}%</span></div>
+                        <div class="score-item">📝 Text: <span class="score-value">${((result.text_score || result.similarity_score || result.similarity || 0) * 100).toFixed(1)}%</span></div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
         
         function showError(message) {

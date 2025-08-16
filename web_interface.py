@@ -158,12 +158,32 @@ async def startup_event():
         }
     ]
     
+    # Auto-load CLIP model for immediate use
+    try:
+        logger.info("🚀 Loading default CLIP model...")
+        success = model_manager.load_model("clip_vit_base")
+        if success:
+            search_engine.set_active_model("vision_language", "clip_vit_base")
+            logger.info("✅ CLIP model loaded and set as active")
+            
+            # Build/load embeddings for immediate search capability
+            logger.info("🚀 Loading embeddings for search...")
+            embeddings_success = search_engine.build_embeddings_index()
+            if embeddings_success:
+                logger.info("✅ Embeddings loaded successfully")
+            else:
+                logger.warning("⚠️ Failed to load embeddings")
+        else:
+            logger.warning("⚠️ Failed to load CLIP model")
+    except Exception as e:
+        logger.error(f"❌ Error loading CLIP model: {e}")
+    
     logger.info("🌐 Web interface ready!")
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Main web interface"""
-    return templates.TemplateResponse("web_interface.html", {
+    return templates.TemplateResponse("index.html", {
         "request": request,
         "datasets": available_datasets,
         "current_dataset": current_dataset,
@@ -326,30 +346,137 @@ async def switch_model(request: Request):
         logger.error(f"Error switching model: {e}")
         return {"success": False, "error": str(e)}
 
+@app.get("/search")
+async def get_search(q: str, topk: int = 12):
+    """GET endpoint for search - for compatibility"""
+    if not q:
+        return {"error": "Query parameter 'q' is required"}
+    
+    try:
+        # Perform search using current search engine
+        results = search_engine.search_similar_frames(q, top_k=topk)
+        
+        # Format results to ensure all fields are present
+        formatted_results = []
+        for result in results:
+            # Safely handle similarity score
+            similarity = result.get("similarity_score", result.get("similarity", 0.0))
+            if similarity is None:
+                similarity = 0.0
+            try:
+                similarity = float(similarity)
+            except (ValueError, TypeError):
+                similarity = 0.0
+            
+            # Calculate timestamp from frame number if available
+            timestamp = result.get("timestamp_seconds", 0.0)
+            if timestamp == 0.0 and "frame_number" in result:
+                frame_number = result.get("frame_number", 0)
+                # Calculate timestamp assuming 30 FPS (1 frame = 1/30 second)
+                timestamp = frame_number / 30.0
+            
+            if timestamp is None:
+                timestamp = 0.0
+            try:
+                timestamp = float(timestamp)
+            except (ValueError, TypeError):
+                timestamp = 0.0
+            
+            formatted_result = {
+                "frame_path": result.get("frame_path", ""),
+                "timestamp": timestamp,
+                "frame_number": result.get("frame_number", 0),
+                "similarity": similarity,
+                "video_name": result.get("video_name", "Unknown"),
+                "dataset": result.get("dataset", current_dataset)
+            }
+            formatted_results.append(formatted_result)
+        
+        return {
+            "results": formatted_results,
+            "query": q,
+            "total": len(formatted_results),
+            "dataset": current_dataset,
+            "model": getattr(search_engine, 'current_model', 'clip_vit_base')
+        }
+        
+    except Exception as e:
+        logger.error(f"Search error: {e}")
+        return {"error": str(e)}
+
 @app.post("/api/search")
 async def web_search(request: Request):
     """Search with current dataset and model"""
     data = await request.json()
     query = data.get("query", "")
     top_k = data.get("top_k", 6)
+    model_key = data.get("model", "clip_vit_base")
     
     if not query:
         return {"error": "Query is required"}
     
     try:
+        # Switch model if requested
+        if model_key and model_key != search_engine.get_active_models().get("vision_language"):
+            logger.info(f"Switching to model: {model_key}")
+            success = model_manager.load_model(model_key)
+            if success:
+                search_engine.set_active_model("vision_language", model_key)
+                # Build embeddings for new model if needed
+                search_engine.build_embeddings_index()
+                logger.info(f"✅ Switched to model: {model_key}")
+            else:
+                logger.warning(f"⚠️ Failed to load model: {model_key}")
+        
         # Perform search
-        results = await search_engine.search_similar_frames(query, top_k=top_k)
+        results = search_engine.search_similar_frames(query, top_k=top_k)
         
         # Format results for web display
         formatted_results = []
         for result in results:
+            # Safely handle similarity score
+            similarity = result.get("similarity_score", result.get("similarity", 0.0))
+            if similarity is None:
+                similarity = 0.0
+            try:
+                similarity = float(similarity)
+            except (ValueError, TypeError):
+                similarity = 0.0
+            
+            # Calculate timestamp from frame number if available
+            timestamp = result.get("timestamp_seconds", 0.0)
+            if timestamp == 0.0 and "frame_number" in result:
+                frame_number = result.get("frame_number", 0)
+                # Calculate timestamp assuming 30 FPS (1 frame = 1/30 second)
+                timestamp = frame_number / 30.0
+            
+            if timestamp is None:
+                timestamp = 0.0
+            try:
+                timestamp = float(timestamp)
+            except (ValueError, TypeError):
+                timestamp = 0.0
+            
+            # Extract video name from frame_path if needed
+            video_name = result.get("video_name", "Unknown")
+            if video_name == "Unknown" and result.get("frame_path"):
+                frame_path = result.get("frame_path", "")
+                # Extract from path like "frames\good willhunting\frame_000285.jpg"
+                path_parts = frame_path.replace('\\', '/').split('/')
+                if len(path_parts) >= 2:
+                    video_name = path_parts[-2]  # Get folder name
+            
             formatted_results.append({
                 "frame_path": result.get("frame_path", ""),
-                "video_name": result.get("video_name", ""),
-                "timestamp": result.get("timestamp", 0),
-                "similarity_score": result.get("similarity_score", 0),
+                "video_name": video_name,
+                "timestamp": timestamp,
+                "frame_number": result.get("frame_number", 0),
+                "similarity_score": similarity,
                 "frame_url": f"/frames/{Path(result.get('frame_path', '')).name}"
             })
+        
+        active_models = search_engine.get_active_models()
+        current_model = active_models.get("vision_language", model_key)
         
         return {
             "success": True,
@@ -357,7 +484,7 @@ async def web_search(request: Request):
             "results": formatted_results,
             "total_results": len(formatted_results),
             "dataset": current_dataset,
-            "model": getattr(search_engine, 'current_model', 'clip_vit_base')
+            "model": current_model
         }
         
     except Exception as e:
