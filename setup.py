@@ -858,8 +858,7 @@ def main():
     # Tự động tách frame nếu chưa có
     auto_extract_frames_if_needed()
     
-        # Setup embedding system (chỉ tạo embedding, không khởi tạo dataset/web interface)
-    setup_embedding_system()
+    
     
     # Smart install dependencies based on Python version
     if not smart_install_requirements(requirements_file, mode):
@@ -886,6 +885,9 @@ def main():
     # Create installation summary
     create_installation_summary()
 
+    # Setup embedding system (chỉ tạo embedding, không khởi tạo dataset/web interface)
+    setup_embedding_system()
+    
     # Completion message
     print_completion_message(mode, python_version)
 
