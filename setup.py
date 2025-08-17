@@ -203,7 +203,7 @@ def cleanup_corrupt_packages():
 
 def install_core_packages():
     """Install core packages with proper order and NumPy constraint"""
-    print("\n📦 Installing core packages with NumPy constraint...")
+    print("\n📦 Installing core packages...")
     print("   • numpy>=1.26.4,<2.0.0")
     print("   • pip>=25.2, setuptools>=80.9.0, wheel>=0.45.1, packaging>=25.0")
     
@@ -243,23 +243,9 @@ def smart_install_requirements(requirements_file, mode):
     print("🔄 Upgrading pip...")
     run_command(f'"{sys.executable}" -m pip install --upgrade pip', "Upgrading pip")
 
-    # Chọn constraint NumPy phù hợp
-    # Luôn constraint đúng bản đã cài
-    numpy_constraint = "numpy>=1.26.4,<2.0.0"
-
-    # Tạo constraint file
-    constraint_file = Path("temp_numpy_constraint.txt")
-    with open(constraint_file, 'w') as f:
-        f.write(numpy_constraint + "\n")
-
-    print(f"📋 Installing from {requirements_file} with NumPy constraint: {numpy_constraint}")
-    command = f'"{sys.executable}" -m pip install -r "{requirements_file}" -c "{constraint_file}"'
-    success, output = run_command(command, "Installing dependencies with NumPy constraint")
-
-    # Clean up constraint file
-    if constraint_file.exists():
-        constraint_file.unlink()
-
+    command = f'"{sys.executable}" -m pip install -r "{requirements_file}"'
+    success, output = run_command(command, "Installing dependencies")
+    
     if success:
         print("✅ Dependencies installed successfully with constraints")
         return True
@@ -269,8 +255,8 @@ def smart_install_requirements(requirements_file, mode):
         command = f'"{sys.executable}" -m pip install -r "{requirements_file}"'
         success, output = run_command(command, "Installing dependencies (fallback)")
         if success:
-            print("✅ Dependencies installed (may need NumPy fix)")
-            fix_numpy_compatibility()
+            print("✅ Dependencies installed")
+            # fix_numpy_compatibility()
             return True
         else:
             print("❌ Failed to install dependencies")
@@ -354,7 +340,7 @@ def install_requirements():
     
     # Try installing requirements with NumPy constraint
     if requirements_file.exists():
-        print(f"📋 Installing from {requirements_file} with NumPy constraint")
+        print(f"📋 Installing from {requirements_file}")
         
         # Install with NumPy constraint to prevent conflicts
         command = f'"{sys.executable}" -m pip install -r "{requirements_file}" --constraint <(echo "numpy<2")'
@@ -368,13 +354,13 @@ def install_requirements():
             
             command = f'"{sys.executable}" -m pip install -r "{requirements_file}" --constraint "{constraint_file}"'
             
-            success = run_command(command, "Installing all dependencies with NumPy constraint")
+            success = run_command(command, "Installing all dependencies")
             
             # Clean up constraint file
             if constraint_file.exists():
                 constraint_file.unlink()
         else:
-            success = run_command(command, "Installing all dependencies with NumPy constraint")
+            success = run_command(command, "Installing all dependencies")
         
         if success:
             print("✅ All dependencies installed successfully")
@@ -726,68 +712,56 @@ def print_completion_message(mode, python_version):
     print("=" * 60)
 
 def setup_embedding_system():
+    print("\n🔄 Import và khởi tạo các mô hình AI...")
+    try:
+        from transformers import AutoProcessor, AutoModel, CLIPProcessor, CLIPModel
+        print("✅ Đã import transformers thành công")
+        # Khởi tạo Chinese-CLIP
+        print("🔄 Khởi tạo Chinese-CLIP...")
+        chinese_clip_processor = AutoProcessor.from_pretrained('OFA-Sys/chinese-clip-vit-base-patch16')
+        chinese_clip_model = AutoModel.from_pretrained('OFA-Sys/chinese-clip-vit-base-patch16')
+        print("✅ Chinese-CLIP đã sẵn sàng")
+        # Khởi tạo SigLIP
+        print("🔄 Khởi tạo SigLIP...")
+        siglip_processor = AutoProcessor.from_pretrained('google/siglip-base-patch16-256-multilingual')
+        siglip_model = AutoModel.from_pretrained('google/siglip-base-patch16-256-multilingual')
+        print("✅ SigLIP đã sẵn sàng")
+        # Khởi tạo CLIP
+        print("🔄 Khởi tạo CLIP...")
+        clip_processor = CLIPProcessor.from_pretrained('openai/clip-vit-base-patch16')
+        clip_model = CLIPModel.from_pretrained('openai/clip-vit-base-patch16')
+        print("✅ CLIP đã sẵn sàng")
+    except Exception as e:
+        print(f"⚠️ Lỗi khi import/khởi tạo mô hình: {e}")
     """Setup embedding system components and build embeddings"""
     print("\n🎯 Setting up AI Embedding System...")
     
-    # Check if embeddings already exist
+    # Check frame count and embedding count for all models
+    print("\n🔍 Checking frame and embedding counts...")
+    import glob
+    frame_files = glob.glob('frames/**/*.jpg', recursive=True)
+    frame_count = len(frame_files)
+    print(f"� Total frames (.jpg): {frame_count}")
+    # List embedding files to check
     embedding_files = [
-        'index/embeddings/image_embeddings_clip_vit_base.npy',
-        'index/embeddings/frames_chinese_clip.f16.mmap'
+        ('index/embeddings/frames_chinese_clip.f16.mmap', 'scripts/encode_chinese_clip.py'),
+        ('index/embeddings/frames_clip.f16.mmap', 'scripts/encode_clip.py')
     ]
-    
-    existing_embeddings = [f for f in embedding_files if os.path.exists(f)]
-    
-    if existing_embeddings:
-        print("✅ Found existing embeddings:")
-        for emb in existing_embeddings:
-            size_mb = os.path.getsize(emb) / 1024 / 1024
-            print(f"   📁 {emb} ({size_mb:.1f} MB)")
-        print("🔄 Embeddings already exist - skipping build")
-    else:
-        print("🔄 No embeddings found - building now...")
-        
-        # Try to build embeddings automatically
-        try:
-            print("🔄 Initializing AI models and building embeddings...")
-            
-            # Import and initialize the system
-            from ai_search_engine import EnhancedAIVideoSearchEngine
-            from enhanced_hybrid_manager import EnhancedHybridModelManager
-            
-            print("📚 Loading AI models...")
-            manager = EnhancedHybridModelManager()
-            search_engine = EnhancedAIVideoSearchEngine(model_manager=manager)
-            
-            print("🤖 Initializing default models...")
-            search_engine.initialize_default_models()
-            
-            print("🏗️ Building embeddings index (this may take a few minutes)...")
-            search_engine.build_embeddings_index()
-            
-            print("✅ Embeddings built successfully!")
-            
-        except Exception as e:
-            print(f"⚠️ Could not auto-build embeddings: {e}")
-            print("💡 You can build them manually later:")
-            print("   📋 Run: python -c \"from ai_search_engine import *; from enhanced_hybrid_manager import *; manager = EnhancedHybridModelManager(); engine = EnhancedAIVideoSearchEngine(model_manager=manager); engine.initialize_default_models(); engine.build_embeddings_index()\"")
-    
-    # Check embedding scripts
-    embedding_scripts = [
-        'scripts/encode_chinese_clip.py',
-        'scripts/build_faiss_chinese_clip.py',
-        'scripts/text_embed.py'
-    ]
-    
-    missing_scripts = [s for s in embedding_scripts if not os.path.exists(s)]
-    if missing_scripts:
-        print("⚠️ Missing embedding scripts:")
-        for script in missing_scripts:
-            print(f"   ❌ {script}")
-    else:
-        print("✅ All embedding scripts available")
-    
+    for emb_path, script_path in embedding_files:
+        if os.path.exists(emb_path):
+            file_size = os.path.getsize(emb_path)
+            dim = 512
+            emb_count = file_size // (2 * dim)
+            print(f"   {emb_path}: {emb_count} vectors")
+            if emb_count != frame_count:
+                print(f"⚠️ Số lượng embedding không khớp với số lượng frame! Tự động tạo lại: {script_path}")
+                subprocess.run(f'{sys.executable} {script_path}', shell=True)
+            else:
+                print(f"✅ Số lượng embedding khớp với frame")
+        else:
+            print(f"❌ Chưa có embedding: {emb_path}. Tự động tạo: {script_path}")
+            subprocess.run(f'{sys.executable} {script_path}', shell=True)
     print("🎯 Embedding system ready!")
-    
     return True
 
 def extract_frames_ffmpeg(video_path, output_dir, fps=1):
@@ -884,6 +858,9 @@ def main():
     # Tự động tách frame nếu chưa có
     auto_extract_frames_if_needed()
     
+        # Setup embedding system (chỉ tạo embedding, không khởi tạo dataset/web interface)
+    setup_embedding_system()
+    
     # Smart install dependencies based on Python version
     if not smart_install_requirements(requirements_file, mode):
         print("❌ Failed to install dependencies")
@@ -905,9 +882,6 @@ def main():
     # Test GPU (optional)
     if python_version.minor <= 11:
         test_gpu_functionality()
-    
-    # Setup embedding system (chỉ tạo embedding, không khởi tạo dataset/web interface)
-    setup_embedding_system()
 
     # Create installation summary
     create_installation_summary()

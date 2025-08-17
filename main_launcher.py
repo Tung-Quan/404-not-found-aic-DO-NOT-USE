@@ -602,12 +602,39 @@ def start_full_version():
     try:
         from ai_search_engine import EnhancedAIVideoSearchEngine
         ai_search = EnhancedAIVideoSearchEngine()
-        ai_search.run()
-        return True
+        # ai_search.run()
+        # Show available models
+        if ai_search.model_manager:
+            print("\n📋 Available Models:")
+            models = ai_search.model_manager.get_available_models()
+            for model_key, config in models.items():
+                print(f"  - {model_key}: {config.name} ({config.backend.value})")
+        
+        # Initialize default models
+        if not ai_search.initialize_default_models():
+            print("❌ Failed to initialize models")
+            return
+        
+        print(f"\n🎯 Active Models:")
+        for task, model_key in ai_search.get_active_models().items():
+            if model_key:
+                config = ai_search.model_manager.loaded_models[model_key]
+                print(f"  {task}: {config.name} ({config.backend.value})")
+        
+        # Build embeddings if needed
+        print("\n🔄 Checking embeddings...")
+        vision_model = ai_search.active_models.get("vision_language")
+        if vision_model and vision_model not in ai_search.image_embeddings:
+            print(f"Building embeddings with {vision_model}...")
+            ai_search.build_embeddings_index(vision_model)
+        
+        return start_web_interface()
+        # return True
     except ImportError as e:
         print(f"❌ Import error: {e}")
         print("💡 Some dependencies may be missing")
         print("🔧 Try running option 4 (Auto-Install) first")
+        ai_search.cleanup_unused_models()
         return False
     except Exception as e:
         print(f"❌ Failed to start full version: {e}")
@@ -627,7 +654,7 @@ def main():
         
         # Get user choice
         choice = get_user_choice(status)
-        
+        print(f"CHOICES: {choice}")
         if choice == "web":
             start_web_interface()
         elif choice == "full":

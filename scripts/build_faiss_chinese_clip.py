@@ -8,20 +8,15 @@ print("=" * 50)
 
 # Load Chinese-CLIP embeddings
 embedding_path = 'index/embeddings/frames_chinese_clip.f16.mmap'
-meta_path = 'index/meta.parquet'
 
 print(f"📁 Loading embeddings from: {embedding_path}")
-print(f"📋 Loading metadata from: {meta_path}")
-
-# Load metadata first to get count
-meta = pd.read_parquet(meta_path)
-N = len(meta)
-DIM = 512  # Chinese-CLIP dimension
-
-print(f"📊 Total frames: {N:,}")
+# Đếm số lượng embedding theo file mmap
+import os
+file_size = os.path.getsize(embedding_path)
+DIM = 512
+N = file_size // (2 * DIM)  # float16 = 2 bytes
+print(f"📊 Tổng số vectors: {N:,}")
 print(f"📏 Embedding dimension: {DIM}")
-
-# Load embeddings
 embeddings = np.memmap(embedding_path, dtype='float16', mode='r', shape=(N, DIM))
 
 # Convert to float32 for FAISS

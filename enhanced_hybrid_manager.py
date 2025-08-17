@@ -239,7 +239,7 @@ class EnhancedHybridModelManager:
             )
             
             # BLIP Models (Image Captioning)
-            self.available_models["blip_base"] = ModelConfig(
+            self.available_models["chinese_clip"] = ModelConfig(
                 name="BLIP Base",
                 model_type=ModelType.IMAGE_CAPTIONING,
                 backend=ModelBackend.PYTORCH,
@@ -251,7 +251,7 @@ class EnhancedHybridModelManager:
         
         # TensorFlow Hub models (if available)
         if TENSORFLOW_HUB_AVAILABLE:
-            self.available_models["use_v4"] = ModelConfig(
+            self.available_models["sentence_transformers"] = ModelConfig(
                 name="Universal Sentence Encoder v4",
                 model_type=ModelType.TEXT_EMBEDDING,
                 backend=ModelBackend.TENSORFLOW,

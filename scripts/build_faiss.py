@@ -29,16 +29,13 @@ def build_faiss_index(embedding_path: str, output_path: str,
     try:
         print(f"🔄 Loading embeddings from: {embedding_path}")
         
-        # Load metadata to get number of vectors
-        meta = pd.read_parquet('index/meta.parquet')
-        N = len(meta)
-        print(f"   Expected vectors: {N:,}")
-        
-        # Load embeddings
+        # Đếm số lượng vector embedding thực tế từ file mmap
         if not os.path.exists(embedding_path):
             print(f"❌ Embeddings not found: {embedding_path}")
             return False
-            
+        file_size = os.path.getsize(embedding_path)
+        N = file_size // (2 * embedding_dim)  # float16 = 2 bytes
+        print(f"   Số lượng vectors: {N:,}")
         vecs = np.memmap(embedding_path, dtype='float16', mode='r', shape=(N, embedding_dim)).astype('float32')
         print(f"   Loaded embeddings shape: {vecs.shape}")
         
@@ -88,54 +85,54 @@ def build_metadata_index(meta_path: str = 'index/meta.parquet',
     Build enhanced metadata with text content for USE scoring
     """
     try:
-        print("📊 Building enhanced metadata...")
-        
-        # Load existing metadata
-        meta = pd.read_parquet(meta_path)
-        print(f"   Loaded {len(meta)} records")
-        
-        # Enhance metadata with text content
+        print("📊 Building metadata for all .jpg frames in 'frames/' ...")
+        print("   Đang quét toàn bộ file .jpg bằng os.walk...")
         enhanced_meta = []
-        for _, row in meta.iterrows():
-            # Extract text from video title
-            video_title = row['video_id']
-            
-            # Clean up title for better text processing
-            clean_title = video_title.replace('[', ' ').replace(']', ' ').replace('_', ' ')
-            words = clean_title.split()
-            
-            # Extract potential labels/keywords from title
-            labels_obj = []
-            labels_audio = []
-            
-            # Simple keyword extraction (can be enhanced)
-            programming_keywords = ['react', 'javascript', 'code', 'programming', 'tutorial', 'lesson']
-            for word in words:
-                word_lower = word.lower()
-                if word_lower in programming_keywords:
-                    labels_obj.append(word_lower)
-            
-            # Create enhanced metadata record
-            record = {
-                'frame_id': len(enhanced_meta),
-                'video_id': row['video_id'],
-                'ts': int(row['ts']),
-                'frame_path': row['frame_path'],
-                'tx': clean_title,  # Cleaned title text
-                'labels_obj': labels_obj,
-                'labels_audio': labels_audio,
-                'title_words': words
-            }
-            enhanced_meta.append(record)
-        
+        idx = 0
+        for root, dirs, files in os.walk('frames'):
+            for file in files:
+                if file.lower().endswith('.jpg'):
+                    frame_path = os.path.join(root, file)
+                    parts = frame_path.replace('\\', '/').split('/')
+                    video_folder = parts[1] if len(parts) > 2 else ''
+                    frame_name = parts[-1]
+                    clean_title = video_folder.replace('[', ' ').replace(']', ' ').replace('_', ' ')
+                    words = clean_title.split()
+                    labels_obj = []
+                    labels_audio = []
+                    programming_keywords = ['react', 'javascript', 'code', 'programming', 'tutorial', 'lesson']
+                    for word in words:
+                        word_lower = word.lower()
+                        if word_lower in programming_keywords:
+                            labels_obj.append(word_lower)
+                    try:
+                        frame_number = int(''.join(filter(str.isdigit, frame_name)))
+                    except:
+                        frame_number = None
+                    timestamp_seconds = frame_number if frame_number is not None else None
+                    timestamp = f"{timestamp_seconds//60:02}:{timestamp_seconds%60:02}" if timestamp_seconds is not None else None
+                    record = {
+                        'frame_id': idx,
+                        'video_file': video_folder,
+                        'frame_number': frame_number,
+                        'frame_path': frame_path,
+                        'relative_path': frame_path.replace('\\', '/'),
+                        'timestamp': timestamp,
+                        'timestamp_seconds': timestamp_seconds,
+                        'tx': clean_title,
+                        'labels_obj': labels_obj,
+                        'labels_audio': labels_audio,
+                        'title_words': words
+                    }
+                    enhanced_meta.append(record)
+                    idx += 1
+        print(f"   Đã tìm thấy {len(enhanced_meta):,} file .jpg")
         # Save enhanced metadata
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(enhanced_meta, f, ensure_ascii=False, indent=2)
-        
-        print(f"✅ Enhanced metadata saved: {output_path}")
+        print(f"✅ Metadata for all frames saved: {output_path}")
         print(f"   Records: {len(enhanced_meta):,}")
-        
         return True
         
     except Exception as e:

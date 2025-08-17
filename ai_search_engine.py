@@ -4,6 +4,7 @@ Supports both PyTorch and TensorFlow models with real-time switching
 """
 
 import json
+import os
 import time
 import logging
 from pathlib import Path
@@ -462,14 +463,29 @@ class EnhancedAIVideoSearchEngine:
             return None
     
     def load_metadata(self):
-        """Load frames metadata"""
+        """Load frames metadata, or auto-generate from all .jpg files in frames/ if missing/incomplete"""
         metadata_file = self.index_dir / "metadata.json"
+        frames_dir = Path("frames")
+        all_frame_files = []
+        for root, dirs, files in os.walk(frames_dir):
+            for file in files:
+                if file.lower().endswith('.jpg'):
+                    all_frame_files.append(str(Path(root) / file))
         if metadata_file.exists():
             with open(metadata_file, 'r', encoding='utf-8') as f:
-                self.frames_metadata = json.load(f)
-            print(f"📊 Loaded {len(self.frames_metadata)} frame records")
+                loaded_meta = json.load(f)
+            # Only keep frames that exist on disk
+            self.frames_metadata = [m for m in loaded_meta if Path(m['frame_path']).exists()]
+            # Add any missing frames from disk
+            existing_paths = set(m['frame_path'] for m in self.frames_metadata)
+            for frame_path in all_frame_files:
+                if frame_path not in existing_paths:
+                    self.frames_metadata.append({'frame_path': frame_path})
+            print(f"📊 Loaded {len(self.frames_metadata)} frame records (from metadata + disk)")
         else:
-            print("❌ No metadata found. Run setup_video_frames.py first")
+            # No metadata, generate from disk
+            self.frames_metadata = [{'frame_path': frame_path} for frame_path in all_frame_files]
+            print(f"📊 Auto-generated {len(self.frames_metadata)} frame records from disk")
     
     def initialize_default_models(self) -> bool:
         """Initialize default models for basic functionality"""
