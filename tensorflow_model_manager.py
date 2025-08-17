@@ -475,3 +475,5 @@ def test_tensorflow_models():
 
 if __name__ == "__main__":
     test_tensorflow_models()
+
+tensorflow_model_manager = TensorFlowModelManager()

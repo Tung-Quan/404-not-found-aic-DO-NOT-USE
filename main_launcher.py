@@ -644,7 +644,7 @@ def main():
             run_performance_comparison()
         elif choice == "fix":
             fix_dependencies()
-        elif choice == "exit":
+        elif choice == "quit":
             print("👋 Goodbye!")
             break
         

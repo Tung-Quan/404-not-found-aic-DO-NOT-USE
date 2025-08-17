@@ -15,7 +15,10 @@ def print_banner():
     """Print setup banner"""
     print("╔═══════════════════════════════════════════════════════════╗")
     print("║    🎯 Enhanced AI Video Search System - Smart Setup       ║")
-    print("║              Complete Installation & NumPy Fix            ║")
+    print("║   Complete Installation & NumPy/AI Version Pinning        ║")
+    print("╠═══════════════════════════════════════════════════════════╣")
+    print("║  Core versions: torch==2.7.1+cu118, torchvision==0.22.1+cu118, torchaudio==2.7.1+cu118")
+    print("║  faiss-cpu==1.12.0, tensorflow==2.20.0, tensorflow-hub==0.16.1, numpy>=1.26.4,<2.0.0")
     print("╚═══════════════════════════════════════════════════════════╝")
     print()
 
@@ -107,49 +110,70 @@ def run_command(command, description, show_output=False):
         if hasattr(e, 'stderr') and e.stderr:
             print(f"Error details: {e.stderr}")
         return False, str(e)
-
-def fix_numpy_compatibility():
-    """Fix NumPy compatibility issues with TensorFlow and cleanup corrupt installations"""
-    print("\n🔧 Ensuring NumPy 1.x compatibility...")
     
+def fix_numpy_compatibility():
+    """Fix NumPy compatibility issues with TensorFlow & PyTorch (lock 1.26.x series)"""
+    print("\n🔧 Ensuring NumPy 1.26.x compatibility...")
+
     # First cleanup any corrupt numpy installations
     cleanup_corrupt_packages()
-    
+
     try:
         import numpy as np
         numpy_version = np.__version__
-        major_version = int(numpy_version.split('.')[0])
+        major, minor, *_ = map(int, numpy_version.split('.'))
         
         print(f"📊 Current NumPy version: {numpy_version}")
-        
-        if major_version >= 2:
-            print("⚠️ NumPy 2.x detected - TensorFlow requires NumPy 1.x")
-            print("🔄 Downgrading NumPy to compatible version...")
-            
-            # Uninstall current NumPy
-            success, _ = run_command(f'"{sys.executable}" -m pip uninstall numpy -y', "Uninstalling NumPy 2.x")
+
+        # Case 1: NumPy >= 2.0 (incompatible with TF 2.20 / Torch 2.x)
+        if major >= 2:
+            print("⚠️ NumPy 2.x detected - incompatible with TensorFlow/PyTorch stack")
+            print("🔄 Downgrading to NumPy 1.26.x...")
+            run_command(f'"{sys.executable}" -m pip uninstall numpy -y', "Uninstalling NumPy 2.x")
+            success, _ = run_command(
+                f'"{sys.executable}" -m pip install "numpy>=1.26.0,<2.0.0"',
+                "Installing NumPy 1.26.x"
+            )
             if success:
-                # Install compatible NumPy version
-                success, _ = run_command(f'"{sys.executable}" -m pip install "numpy>=1.19.0,<2.0.0"', "Installing NumPy 1.x")
-                if success:
-                    print("✅ NumPy downgraded successfully")
-                    return True
-                else:
-                    print("❌ Failed to install compatible NumPy")
-                    return False
+                print("✅ Downgrade to NumPy 1.26.x successful")
+                return True
             else:
-                print("❌ Failed to uninstall NumPy 2.x")
+                print("❌ Failed to install NumPy 1.26.x")
                 return False
-        else:
-            print("✅ NumPy 1.x detected - compatible with TensorFlow")
+
+        # Case 2: NumPy < 1.26 (too old, may break TF 2.20)
+        elif major == 1 and minor < 26:
+            print("⚠️ NumPy version too old (<1.26) - upgrading...")
+            success, _ = run_command(
+                f'"{sys.executable}" -m pip install --upgrade "numpy>=1.26.0,<2.0.0"',
+                "Upgrading NumPy to 1.26.x"
+            )
+            if success:
+                print("✅ NumPy upgraded to 1.26.x successfully")
+                return True
+            else:
+                print("❌ Failed to upgrade NumPy")
+                return False
+
+        # Case 3: NumPy 1.26.x (correct version range)
+        elif major == 1 and minor >= 26:
+            print("✅ NumPy 1.26.x detected - compatible with TensorFlow/PyTorch")
             return True
-            
+
+        else:
+            print("⚠️ Unexpected NumPy version - forcing reinstall...")
+            run_command(f'"{sys.executable}" -m pip uninstall numpy -y', "Uninstalling NumPy")
+            run_command(f'"{sys.executable}" -m pip install "numpy>=1.26.0,<2.0.0"', "Installing NumPy 1.26.x")
+            return True
+
     except ImportError:
-        print("📦 NumPy not installed yet - will install compatible version")
+        print("📦 NumPy not installed yet - installing compatible version (1.26.x)")
+        run_command(f'"{sys.executable}" -m pip install "numpy>=1.26.0,<2.0.0"', "Installing NumPy 1.26.x")
         return True
     except Exception as e:
         print(f"⚠️ Error checking NumPy: {e}")
         return True  # Continue anyway
+
 
 def cleanup_corrupt_packages():
     """Clean up corrupt package installations"""
@@ -180,14 +204,16 @@ def cleanup_corrupt_packages():
 def install_core_packages():
     """Install core packages with proper order and NumPy constraint"""
     print("\n📦 Installing core packages with NumPy constraint...")
+    print("   • numpy>=1.26.4,<2.0.0")
+    print("   • pip>=25.2, setuptools>=80.9.0, wheel>=0.45.1, packaging>=25.0")
     
     # Core packages that need to be installed first
     core_packages = [
-        "pip>=23.0",
-        "setuptools>=65.0", 
-        "wheel>=0.40.0",
-        '"numpy>=1.19.0,<2.0.0"',  # Force NumPy 1.x for TensorFlow compatibility
-        "packaging>=21.0"
+        "pip>=25.2",
+        "setuptools>=80.9.0", 
+        "wheel>=0.45.1",
+        'numpy>=1.26.4,<2.0.0',  # Đúng bản đã cài
+        "packaging>=25.0"
     ]
     
     for package in core_packages:
@@ -201,62 +227,54 @@ def smart_install_requirements(requirements_file, mode):
     """Smart installation with NumPy handling and fallbacks"""
     print(f"\n📦 Installing Dependencies: {mode}")
     print(f"📋 Requirements file: {requirements_file}")
+    print("   • torch==2.7.1+cu118, torchvision==0.22.1+cu118, torchaudio==2.7.1+cu118")
+    print("   • faiss-cpu==1.12.0, tensorflow==2.20.0, tensorflow-hub==0.16.1")
+    print("   • numpy>=1.26.4,<2.0.0")
     
     # Check if file exists
     if not os.path.exists(requirements_file):
         print(f"❌ Requirements file not found: {requirements_file}")
         return False
     
-    # Pre-install NumPy fix
-    fix_numpy_compatibility()
-    
     # Install core packages first
     install_core_packages()
-    
+
     # Upgrade pip
     print("🔄 Upgrading pip...")
     run_command(f'"{sys.executable}" -m pip install --upgrade pip', "Upgrading pip")
-    
-    # Install requirements with NumPy constraint
-    print(f"📋 Installing from {requirements_file}...")
-    
-    # For Windows, create a temporary constraint file
-    constraint_content = "numpy>=1.19.0,<2.0.0\ntensorflow<2.18.0\n"
-    constraint_file = Path("temp_constraints.txt")
-    
-    try:
-        with open(constraint_file, 'w') as f:
-            f.write(constraint_content)
-        
-        # Install with constraint
-        command = f'"{sys.executable}" -m pip install -r "{requirements_file}" -c "{constraint_file}"'
-        success, output = run_command(command, "Installing dependencies with NumPy constraint")
-        
+
+    # Chọn constraint NumPy phù hợp
+    # Luôn constraint đúng bản đã cài
+    numpy_constraint = "numpy>=1.26.4,<2.0.0"
+
+    # Tạo constraint file
+    constraint_file = Path("temp_numpy_constraint.txt")
+    with open(constraint_file, 'w') as f:
+        f.write(numpy_constraint + "\n")
+
+    print(f"📋 Installing from {requirements_file} with NumPy constraint: {numpy_constraint}")
+    command = f'"{sys.executable}" -m pip install -r "{requirements_file}" -c "{constraint_file}"'
+    success, output = run_command(command, "Installing dependencies with NumPy constraint")
+
+    # Clean up constraint file
+    if constraint_file.exists():
+        constraint_file.unlink()
+
+    if success:
+        print("✅ Dependencies installed successfully with constraints")
+        return True
+    else:
+        print("⚠️ Constrained install failed, trying without constraints...")
+        # Fallback: install without constraints
+        command = f'"{sys.executable}" -m pip install -r "{requirements_file}"'
+        success, output = run_command(command, "Installing dependencies (fallback)")
         if success:
-            print("✅ Dependencies installed successfully with constraints")
+            print("✅ Dependencies installed (may need NumPy fix)")
+            fix_numpy_compatibility()
             return True
         else:
-            print("⚠️ Constrained install failed, trying without constraints...")
-            
-            # Fallback: install without constraints
-            command = f'"{sys.executable}" -m pip install -r "{requirements_file}"'
-            success, output = run_command(command, "Installing dependencies (fallback)")
-            
-            if success:
-                print("✅ Dependencies installed (may need NumPy fix)")
-                # Fix NumPy after installation
-                fix_numpy_compatibility()
-                return True
-            else:
-                print("❌ Failed to install dependencies")
-                return False
-                
-    finally:
-        # Clean up constraint file
-        if constraint_file.exists():
-            constraint_file.unlink()
-    
-    return False
+            print("❌ Failed to install dependencies")
+            return False
 
 def fix_numpy_compatibility():
     """Fix NumPy compatibility issues with TensorFlow"""
@@ -397,6 +415,9 @@ def install_requirements():
 def install_gpu_packages(python_version):
     """Install GPU-specific packages based on Python version"""
     print("\n🎮 Installing GPU packages...")
+    print("   • torch==2.7.1+cu118, torchvision==0.22.1+cu118, torchaudio==2.7.1+cu118 (CUDA 11.8)")
+    print("   • faiss-cpu==1.12.0 (Windows) or faiss-gpu (Linux/macOS)")
+    print("   • tensorflow==2.20.0, tensorflow-hub==0.16.1")
     
     # Only install GPU packages for Python <= 3.11
     if python_version.minor > 11:
@@ -406,37 +427,31 @@ def install_gpu_packages(python_version):
     
     gpu_available = check_gpu()
     
+    import platform
     if gpu_available:
         print("Installing GPU-optimized packages...")
-        
-        # PyTorch with CUDA
+
+        # PyTorch với đúng phiên bản đã cài
         pytorch_command = (
-            f'"{sys.executable}" -m pip install torch torchvision torchaudio '
+            f'"{sys.executable}" -m pip install torch==2.7.1+cu118 torchvision==0.22.1+cu118 torchaudio==2.7.1+cu118 '
             "--index-url https://download.pytorch.org/whl/cu118"
         )
-        
-        success, _ = run_command(pytorch_command, "Installing PyTorch with CUDA")
+        success, _ = run_command(pytorch_command, "Installing PyTorch with CUDA 11.8")
         if success:
             print("✅ PyTorch GPU support installed")
-        
-        # FAISS GPU
-        success, _ = run_command(f'"{sys.executable}" -m pip install faiss-gpu', "Installing FAISS GPU")
-        if success:
-            print("✅ FAISS GPU support installed")
-        else:
-            # Fallback to CPU version
-            run_command(f'"{sys.executable}" -m pip install faiss-cpu', "Installing FAISS CPU (fallback)")
-            
-        # TensorFlow GPU (with NumPy constraint)
-        tf_command = f'"{sys.executable}" -m pip install "tensorflow<2.18.0" --upgrade --force-reinstall'
+
+        # FAISS đúng bản đã cài
+        run_command(f'"{sys.executable}" -m pip install faiss-cpu==1.12.0', "Installing FAISS CPU (Windows)")
+
+        # TensorFlow đúng bản đã cài
+        tf_command = f'"{sys.executable}" -m pip install tensorflow==2.20.0 tensorflow-hub==0.16.1 --upgrade --force-reinstall'
         success, _ = run_command(tf_command, "Installing TensorFlow GPU")
         if success:
             print("✅ TensorFlow GPU support installed")
     else:
         print("⚠️ No GPU detected, installing CPU versions")
-        # Install CPU versions
         run_command(f'"{sys.executable}" -m pip install faiss-cpu', "Installing FAISS CPU")
-        
+
     return True
 
 def create_directories():
@@ -490,6 +505,9 @@ LOG_LEVEL=INFO
 def verify_installation():
     """Verify installation by importing key modules with NumPy fix"""
     print("\n🧪 Verifying installation...")
+    print("   • Checking: torch==2.7.1+cu118, torchvision==0.22.1+cu118, torchaudio==2.7.1+cu118")
+    print("   • faiss-cpu==1.12.0, tensorflow==2.20.0, tensorflow-hub==0.16.1")
+    print("   • numpy>=1.26.4,<2.0.0")
     
     # First verify NumPy
     try:
@@ -660,7 +678,10 @@ def print_completion_message(mode, python_version):
     print("=" * 60)
     print(f"🐍 Python Version: {python_version.major}.{python_version.minor}.{python_version.micro}")
     print(f"🎯 Installation Mode: {mode}")
-    print(f"✅ NumPy 1.x compatibility enforced")
+    print("✅ Installed versions:")
+    print("   • torch==2.7.1+cu118, torchvision==0.22.1+cu118, torchaudio==2.7.1+cu118")
+    print("   • faiss-cpu==1.12.0, tensorflow==2.20.0, tensorflow-hub==0.16.1")
+    print("   • numpy>=1.26.4,<2.0.0")
     print()
     print("Next steps:")
     print("1. Test core functionality:")
@@ -769,8 +790,82 @@ def setup_embedding_system():
     
     return True
 
+def extract_frames_ffmpeg(video_path, output_dir, fps=1):
+    """
+    Extract frames from video using ffmpeg, 1 frame per second.
+    Args:
+        video_path (str): Path to input video file
+        output_dir (str): Directory to save frames
+        fps (int): Frames per second (default 1)
+    """
+    Path(output_dir).mkdir(exist_ok=True)
+    # ffmpeg command: 1 frame per second
+    cmd = [
+        "ffmpeg",
+        "-i", video_path,
+        "-vf", f"fps={fps}",
+        f"{output_dir}/frame_%06d.jpg"
+    ]
+    print(f"🔄 Extracting frames from {video_path} to {output_dir} (1 frame/sec)...")
+    try:
+        subprocess.run(cmd, check=True)
+        print(f"✅ Frames extracted to {output_dir}")
+    except Exception as e:
+        print(f"❌ FFmpeg extraction failed: {e}")
+
+# Example usage:
+# extract_frames_ffmpeg('videos/my_video.mp4', 'frames/my_video', fps=1)
+
+def auto_extract_frames_if_needed():
+    """
+    Check if frames/ folder has frames. If not, extract frames from all videos in videos/.
+    """
+    frames_dir = Path("frames")
+    videos_dir = Path("videos")
+    # Check if frames/ exists and has any jpg file
+    has_frames = any(frames_dir.glob("**/*.jpg"))
+    if has_frames:
+        print("✅ Frames already extracted in frames/ folder.")
+        return
+    print("⚠️ No frames found in frames/. Extracting frames from videos...")
+    for video_file in videos_dir.glob("*.mp4"):
+        video_name = video_file.stem
+        output_dir = frames_dir / video_name
+        extract_frames_ffmpeg(str(video_file), str(output_dir), fps=1)
+    print("🎯 All videos processed for frame extraction.")
+
+def install_cuda_windows():
+    """Install CUDA Toolkit on Windows automatically (if not installed)"""
+    import shutil
+    cuda_path = r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA"
+    if os.path.exists(cuda_path):
+        print("✅ CUDA Toolkit đã được cài trên máy.")
+        return True
+    print("⚠️ CUDA Toolkit chưa được cài. Đang tải về và cài đặt...")
+    # Link tải CUDA 11.8 (có thể thay đổi nếu cần bản khác)
+    cuda_url = "https://developer.download.nvidia.com/compute/cuda/11.8.0/local_installers/cuda_11.8.0_windows_network.exe"
+    installer_path = os.path.join(os.getcwd(), "cuda_installer.exe")
+    try:
+        import urllib.request
+        print(f"🔄 Đang tải CUDA installer từ {cuda_url}...")
+        urllib.request.urlretrieve(cuda_url, installer_path)
+        print("✅ Đã tải xong CUDA installer.")
+        print("🔄 Đang chạy installer (cần quyền admin)...")
+        # Chạy installer (yêu cầu quyền admin)
+        result = subprocess.run(f'"{installer_path}" -s', shell=True)
+        if result.returncode == 0:
+            print("✅ Đã cài xong CUDA Toolkit!")
+            if os.path.exists(installer_path):
+                os.remove(installer_path)
+            return True
+        else:
+            print("❌ Cài đặt CUDA thất bại. Hãy chạy installer bằng tay với quyền admin.")
+            return False
+    except Exception as e:
+        print(f"❌ Lỗi khi tải/cài CUDA: {e}")
+        return False
+
 def main():
-    """Main setup function with smart requirements selection"""
     print_banner()
     
     # Check Python version and determine requirements
@@ -785,6 +880,9 @@ def main():
     
     # Create directories
     create_directories()
+    
+    # Tự động tách frame nếu chưa có
+    auto_extract_frames_if_needed()
     
     # Smart install dependencies based on Python version
     if not smart_install_requirements(requirements_file, mode):
@@ -808,19 +906,22 @@ def main():
     if python_version.minor <= 11:
         test_gpu_functionality()
     
-    # Setup embedding system
+    # Setup embedding system (chỉ tạo embedding, không khởi tạo dataset/web interface)
     setup_embedding_system()
-    
+
     # Create installation summary
     create_installation_summary()
-    
+
     # Completion message
     print_completion_message(mode, python_version)
-    
+
     # Final status
     if verification_success:
         print("\n🎯 STATUS: Ready to use!")
         print("🚀 Quick start: python main_launcher.py")
+        print("🌐 Để chạy web interface, hãy dùng lệnh sau sau khi setup xong:")
+        print("   python web_interface.py hoặc cd api && python app.py")
+        print("⚡ Lưu ý: Các chức năng quản lý dataset, khởi tạo web server sẽ do web_interface.py xử lý. Không cần khởi tạo lại trong setup.py!")
     else:
         print("\n⚠️ STATUS: Installed with warnings")
         print("💡 Most features should work, some AI features may be limited")
