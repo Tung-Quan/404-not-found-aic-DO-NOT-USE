@@ -466,13 +466,16 @@ async def web_search(request: Request):
                 if len(path_parts) >= 2:
                     video_name = path_parts[-2]  # Get folder name
             
+            frame_path = result.get("frame_path", "")
+            file_name = Path(frame_path).name if frame_path else ""
             formatted_results.append({
-                "frame_path": result.get("frame_path", ""),
+                "frame_path": frame_path,
+                "file_name": file_name,
                 "video_name": video_name,
                 "timestamp": timestamp,
                 "frame_number": result.get("frame_number", 0),
                 "similarity_score": similarity,
-                "frame_url": f"/frames/{Path(result.get('frame_path', '')).name}"
+                "frame_url": f"/frames/{file_name}"
             })
         
         active_models = search_engine.get_active_models()

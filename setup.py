@@ -755,12 +755,13 @@ def setup_embedding_system():
             print(f"   {emb_path}: {emb_count} vectors")
             if emb_count != frame_count:
                 print(f"⚠️ Số lượng embedding không khớp với số lượng frame! Tự động tạo lại: {script_path}")
-                subprocess.run(f'{sys.executable} {script_path}', shell=True)
+                # subprocess.run(f"{sys.executable} {script_path}", shell=True)
+                subprocess.run([sys.executable, script_path], shell=True)
             else:
                 print(f"✅ Số lượng embedding khớp với frame")
         else:
             print(f"❌ Chưa có embedding: {emb_path}. Tự động tạo: {script_path}")
-            subprocess.run(f'{sys.executable} {script_path}', shell=True)
+            subprocess.run([sys.executable, script_path], shell=True)
     print("🎯 Embedding system ready!")
     return True
 
@@ -856,9 +857,9 @@ def main():
     create_directories()
     
     # Tự động tách frame nếu chưa có
-    auto_extract_frames_if_needed()
+    # auto_extract_frames_if_needed()
     
-        # Setup embedding system (chỉ tạo embedding, không khởi tạo dataset/web interface)
+    # Setup embedding system (chỉ tạo embedding, không khởi tạo dataset/web interface)
     setup_embedding_system()
     
     # Smart install dependencies based on Python version

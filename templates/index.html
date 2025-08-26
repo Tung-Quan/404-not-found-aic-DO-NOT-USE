@@ -525,7 +525,7 @@
                     <div class="result-video">🎬 ${videoName}</div>
                     <div class="result-timestamp">⏰ ${formatTimestamp(result.timestamp || 0)}</div>
                     ${result.frame_number ? `<div class="result-frame">🎞️ Frame #${result.frame_number}</div>` : ''}
-                    
+                    <div class="result-frame">🗂️ File: <span style='color:#4facfe;font-weight:bold'>${result.file_name || ''}</span></div>
                     ${result.title ? `<div class="result-title">"${result.title}"</div>` : ''}
                     
                     ${result.labels && result.labels.length > 0 ? `

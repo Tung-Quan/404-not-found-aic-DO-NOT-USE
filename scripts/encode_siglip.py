@@ -7,7 +7,8 @@ MODEL_ID = 'google/siglip-base-patch16-256-multilingual'
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 DTYPE = torch.float16 if torch.cuda.is_available() else torch.float32
 BATCH = int(os.getenv('BATCH', '64'))
-DIM = 512
+# DIM = 512
+DIM = 768
 
 print("🌐 SIGLIP ENCODING - MULTILINGUAL")
 print("=" * 60)
@@ -43,8 +44,8 @@ def flush():
         return
     with torch.no_grad():
         ins = processor(images=images, return_tensors='pt').to(DEVICE)
-        for k in ins:
-            ins[k] = ins[k].to(DTYPE)
+        # for k in ins:
+        #     ins[k] = ins[k].to(DTYPE)
         out = model.get_image_features(**ins)
         out = torch.nn.functional.normalize(out, dim=-1)
         arr = out.detach().cpu().to(torch.float16).numpy()
