@@ -887,6 +887,9 @@ def main():
     # Create installation summary
     create_installation_summary()
 
+    # Setup embedding system (chỉ tạo embedding, không khởi tạo dataset/web interface)
+    setup_embedding_system()
+    
     # Completion message
     print_completion_message(mode, python_version)
 
