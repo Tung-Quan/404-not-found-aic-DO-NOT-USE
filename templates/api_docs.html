@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 TensorFlow Hub Video Search API</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #4facfe;
+        }
+        
+        .api-test {
+            background: #f8f9ff;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .test-form {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .test-input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+        
+        .test-btn {
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .test-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .test-btn:disabled {
+            opacity: 0.6;
+            transform: none;
+        }
+        
+        .response-box {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .endpoint {
+            background: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4facfe;
+        }
+        
+        .method {
+            background: #4facfe;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .url {
+            font-family: 'Courier New', monospace;
+            background: #f7fafc;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .feature-card {
+            background: #f8f9ff;
+            padding: 25px;
+            border-radius: 10px;
+            border-left: 4px solid #4facfe;
+        }
+        
+        .feature-card h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+        
+        .feature-card ul {
+            list-style-type: none;
+        }
+        
+        .feature-card li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .feature-card li:before {
+            content: "✅";
+            position: absolute;
+            left: 0;
+        }
+        
+        .suggestions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .suggestion-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #4facfe;
+            border-radius: 20px;
+            cursor: pointer;
+            color: #4facfe;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+        
+        .suggestion-btn:hover {
+            background: #4facfe;
+            color: white;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-ok { background: #48bb78; }
+        .status-warning { background: #ed8936; }
+        .status-error { background: #f56565; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 TensorFlow Hub Video Search API</h1>
+            <p>Advanced AI-powered video search using Universal Sentence Encoder & Chinese-CLIP</p>
+        </div>
+        
+        <div class="content">
+            <!-- API Test Section -->
+            <div class="section">
+                <h2>🧪 Live API Test</h2>
+                <div class="api-test">
+                    <h3>Search Videos</h3>
+                    <div class="test-form">
+                        <input type="text" id="searchQuery" class="test-input" 
+                               placeholder="Enter search query (e.g., 'React programming tutorial')" 
+                               value="React programming tutorial">
+                        <select id="topkSelect" class="test-input" style="flex: 0 0 120px;">
+                            <option value="5">Top 5</option>
+                            <option value="10" selected>Top 10</option>
+                            <option value="20">Top 20</option>
+                        </select>
+                        <button onclick="testSearch()" class="test-btn" id="searchBtn">🔍 Search</button>
+                    </div>
+                    
+                    <div class="suggestions">
+                        <button class="suggestion-btn" onclick="setQuery('React programming tutorial')">React tutorial</button>
+                        <button class="suggestion-btn" onclick="setQuery('backend development')">Backend dev</button>
+                        <button class="suggestion-btn" onclick="setQuery('JavaScript coding')">JavaScript</button>
+                        <button class="suggestion-btn" onclick="setQuery('hướng dẫn lập trình')">Vietnamese</button>
+                    </div>
+                    
+                    <div id="responseBox" class="response-box"></div>
+                </div>
+            </div>
+            
+            <!-- System Status -->
+            <div class="section">
+                <h2>📊 System Status</h2>
+                <div id="systemStatus">
+                    <p>Loading system status...</p>
+                </div>
+            </div>
+            
+            <!-- API Endpoints -->
+            <div class="section">
+                <h2>🌐 API Endpoints</h2>
+                
+                <div class="endpoint">
+                    <div><span class="method">GET</span><span class="url">/api/search?q={query}&topk={number}</span></div>
+                    <p><strong>Description:</strong> Search videos using text query</p>
+                    <p><strong>Parameters:</strong></p>
+                    <ul>
+                        <li><code>q</code> - Search query (required)</li>
+                        <li><code>topk</code> - Number of results (optional, default: 10, max: 50)</li>
+                    </ul>
+                </div>
+                
+                <div class="endpoint">
+                    <div><span class="method">POST</span><span class="url">/api/search</span></div>
+                    <p><strong>Description:</strong> Search videos using JSON body</p>
+                    <p><strong>Body:</strong> <code>{"query": "text", "topk": 10}</code></p>
+                </div>
+                
+                <div class="endpoint">
+                    <div><span class="method">GET</span><span class="url">/api/status</span></div>
+                    <p><strong>Description:</strong> Get system status and configuration</p>
+                </div>
+                
+                <div class="endpoint">
+                    <div><span class="method">POST</span><span class="url">/api/query/encode</span></div>
+                    <p><strong>Description:</strong> Encode text query to vector</p>
+                    <p><strong>Body:</strong> <code>{"query": "text"}</code></p>
+                </div>
+            </div>
+            
+            <!-- Features -->
+            <div class="section">
+                <h2>🔥 Key Features</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h3>🤖 TensorFlow Hub Integration</h3>
+                        <ul>
+                            <li>Universal Sentence Encoder Multilingual v3</li>
+                            <li>16 languages support (Vietnamese, English, etc.)</li>
+                            <li>512-dimensional text embeddings</li>
+                            <li>State-of-the-art semantic understanding</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h3>🎯 Advanced Search</h3>
+                        <ul>
+                            <li>Vector similarity search với FAISS</li>
+                            <li>Cross-modal Chinese-CLIP integration</li>
+                            <li>Smart query analysis & topic detection</li>
+                            <li>Sub-second response time</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h3>🌍 Multilingual Support</h3>
+                        <ul>
+                            <li>Vietnamese language processing</li>
+                            <li>English content analysis</li>
+                            <li>Cross-language similarity matching</li>
+                            <li>Automatic language detection</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h3>⚡ Performance</h3>
+                        <ul>
+                            <li>7,932 video frames indexed</li>
+                            <li>Real-time vector encoding</li>
+                            <li>Efficient caching system</li>
+                            <li>Scalable architecture</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load system status on page load
+        window.addEventListener('load', loadSystemStatus);
+        
+        async function loadSystemStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                
+                const statusDiv = document.getElementById('systemStatus');
+                statusDiv.innerHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                        <div class="feature-card">
+                            <h4><span class="status-indicator ${status.system_loaded ? 'status-ok' : 'status-error'}"></span>System Status</h4>
+                            <p>${status.system_loaded ? 'Online' : 'Offline'}</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4><span class="status-indicator ${status.tensorflow_hub_available ? 'status-ok' : 'status-warning'}"></span>TensorFlow Hub</h4>
+                            <p>${status.tensorflow_hub_available ? 'Available' : 'Fallback Mode'}</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4><span class="status-indicator ${status.use_model_loaded ? 'status-ok' : 'status-warning'}"></span>USE Model</h4>
+                            <p>${status.use_model_loaded ? 'Loaded' : 'Not Loaded'}</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4><span class="status-indicator status-ok"></span>Indexed Frames</h4>
+                            <p>${status.total_frames.toLocaleString()}</p>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('systemStatus').innerHTML = 
+                    '<div class="feature-card"><h4><span class="status-indicator status-error"></span>System Error</h4><p>Cannot connect to API</p></div>';
+            }
+        }
+        
+        function setQuery(query) {
+            document.getElementById('searchQuery').value = query;
+        }
+        
+        async function testSearch() {
+            const query = document.getElementById('searchQuery').value.trim();
+            const topk = document.getElementById('topkSelect').value;
+            const btn = document.getElementById('searchBtn');
+            const responseBox = document.getElementById('responseBox');
+            
+            if (!query) {
+                alert('Please enter a search query');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.textContent = '🔄 Searching...';
+            responseBox.style.display = 'block';
+            responseBox.textContent = 'Searching...';
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&topk=${topk}`);
+                const data = await response.json();
+                const endTime = Date.now();
+                
+                if (data.success) {
+                    responseBox.textContent = JSON.stringify(data, null, 2);
+                    
+                    // Show summary
+                    const summary = `
+🎯 Search Results for: "${query}"
+⏱️  API Response Time: ${endTime - startTime}ms
+🔍 Search Time: ${data.search_time_ms.toFixed(1)}ms
+🌐 Language: ${data.query_analysis.language}
+📋 Topics: ${data.query_analysis.topics.join(', ') || 'General'}
+🤖 Encoding Method: ${data.encoding_info.method}
+📊 Results Found: ${data.total_results}
+
+Top Results:
+${data.results.slice(0, 3).map((r, i) => `${i+1}. ${r.video.substring(0, 50)}... (Score: ${r.similarity_score.toFixed(3)})`).join('\n')}
+
+Full Response:
+${JSON.stringify(data, null, 2)}
+                    `;
+                    responseBox.textContent = summary;
+                } else {
+                    responseBox.textContent = `Error: ${data.error}`;
+                }
+            } catch (error) {
+                responseBox.textContent = `Network Error: ${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Search';
+            }
+        }
+        
+        // Allow Enter key to search
+        document.getElementById('searchQuery').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                testSearch();
+            }
+        });
+    </script>
+</body>
+</html>

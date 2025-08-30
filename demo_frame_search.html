@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 Frame Search Backend Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .search-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-controls {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 15px;
+            align-items: end;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .status {
+            background: #e8f5e8;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .status.error {
+            background: #ffeaea;
+            border-left-color: #dc3545;
+        }
+
+        .results-section {
+            margin-top: 30px;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e1e8ed;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .frame-card {
+            background: white;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .frame-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .frame-image {
+            width: 100%;
+            height: 200px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            font-size: 14px;
+            border-bottom: 1px solid #e1e8ed;
+        }
+
+        .frame-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .frame-info {
+            padding: 20px;
+        }
+
+        .frame-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .frame-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .similarity-badge {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .metadata {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .metadata h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .metadata-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+        }
+
+        .metadata-label {
+            font-size: 12px;
+            color: #6c757d;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .metadata-value {
+            font-size: 14px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .json-viewer {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Frame Search Backend</h1>
+            <p>Hệ thống tìm kiếm top 5 frames sát nhất với query</p>
+        </div>
+
+        <div class="content">
+            <!-- Search Section -->
+            <div class="search-section">
+                <h2>🔍 Tìm kiếm Frames</h2>
+                <div class="form-group">
+                    <label for="query">Query</label>
+                    <div class="search-controls">
+                        <input type="text" id="query" placeholder="Nhập từ khóa tìm kiếm (VD: ecommerce, React, API, programming...)" value="ecommerce backend">
+                        <select id="mode">
+                            <option value="auto">Auto Mode</option>
+                            <option value="full">Full AI Mode</option>
+                            <option value="simple">Simple Mode</option>
+                        </select>
+                        <button onclick="searchFrames()" id="searchBtn">Tìm kiếm</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div id="status" class="status" style="display: none;"></div>
+
+            <!-- Results Section -->
+            <div id="results-section" class="results-section" style="display: none;">
+                <div class="results-header">
+                    <h2>📊 Kết quả tìm kiếm</h2>
+                    <div id="results-summary"></div>
+                </div>
+                <div id="results-grid" class="results-grid"></div>
+                
+                <!-- Metadata -->
+                <div id="metadata" class="metadata" style="display: none;">
+                    <h3>📋 Metadata</h3>
+                    <div id="metadata-grid" class="metadata-grid"></div>
+                </div>
+
+                <!-- JSON Response -->
+                <details style="margin-top: 20px;">
+                    <summary style="cursor: pointer; font-weight: 600; padding: 10px; background: #f8f9fa; border-radius: 5px;">📄 Raw JSON Response</summary>
+                    <div id="json-response" class="json-viewer" style="margin-top: 10px;"></div>
+                </details>
+            </div>
+
+            <!-- Loading -->
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Đang tìm kiếm frames...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+
+        async function searchFrames() {
+            const query = document.getElementById('query').value.trim();
+            const mode = document.getElementById('mode').value;
+            
+            if (!query) {
+                showStatus('Vui lòng nhập từ khóa tìm kiếm', 'error');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results-section').style.display = 'none';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('searchBtn').disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        limit: 5,
+                        mode: mode
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                displayResults(data);
+
+            } catch (error) {
+                console.error('Search error:', error);
+                showStatus(`Lỗi tìm kiếm: ${error.message}`, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('searchBtn').disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            // Show results section
+            document.getElementById('results-section').style.display = 'block';
+            
+            // Update summary
+            document.getElementById('results-summary').innerHTML = `
+                <strong>${data.total_results}</strong> kết quả tìm thấy trong <strong>${data.processing_time_ms}ms</strong>
+            `;
+
+            // Display frames
+            const resultsGrid = document.getElementById('results-grid');
+            resultsGrid.innerHTML = '';
+
+            if (data.results.length === 0) {
+                resultsGrid.innerHTML = '<div style="text-align: center; padding: 40px; color: #6c757d;">Không tìm thấy kết quả nào</div>';
+                return;
+            }
+
+            data.results.forEach((frame, index) => {
+                const card = document.createElement('div');
+                card.className = 'frame-card';
+                card.innerHTML = `
+                    <div class="frame-image">
+                        ${frame.frame_base64 ? 
+                            `<img src="data:image/jpeg;base64,${frame.frame_base64}" alt="Frame ${frame.frame_number}">` :
+                            `<img src="${API_BASE}${frame.frame_url}" alt="Frame ${frame.frame_number}" onerror="this.parentElement.innerHTML='🖼️ Frame không khả dụng'">`
+                        }
+                    </div>
+                    <div class="frame-info">
+                        <div class="frame-title">${frame.video_name}</div>
+                        <div class="frame-details">
+                            <div><strong>Frame:</strong> #${frame.frame_number}</div>
+                            <div><strong>Time:</strong> ${frame.timestamp}</div>
+                            <div><strong>Similarity:</strong> <span class="similarity-badge">${(frame.similarity_score * 100).toFixed(1)}%</span></div>
+                            <div><strong>Rank:</strong> #${index + 1}</div>
+                        </div>
+                    </div>
+                `;
+                resultsGrid.appendChild(card);
+            });
+
+            // Display metadata
+            displayMetadata(data.metadata);
+            
+            // Display JSON
+            document.getElementById('json-response').textContent = JSON.stringify(data, null, 2);
+            
+            showStatus(`✅ Tìm thấy ${data.total_results} frames với mode ${data.mode}`, 'success');
+        }
+
+        function displayMetadata(metadata) {
+            const metadataSection = document.getElementById('metadata');
+            const metadataGrid = document.getElementById('metadata-grid');
+            
+            metadataGrid.innerHTML = `
+                <div class="metadata-item">
+                    <div class="metadata-label">Timestamp</div>
+                    <div class="metadata-value">${new Date(metadata.timestamp).toLocaleString()}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">TensorFlow Available</div>
+                    <div class="metadata-value">${metadata.tensorflow_available ? '✅ Yes' : '❌ No'}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Index Size</div>
+                    <div class="metadata-value">${metadata.index_size.toLocaleString()} vectors</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Algorithm</div>
+                    <div class="metadata-value">${metadata.search_algorithm}</div>
+                </div>
+            `;
+            
+            metadataSection.style.display = 'block';
+        }
+
+        function showStatus(message, type = 'success') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+
+        // Allow Enter key to search
+        document.getElementById('query').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchFrames();
+            }
+        });
+
+        // Check server status on load
+        window.addEventListener('load', async function() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                if (response.ok) {
+                    const health = await response.json();
+                    showStatus(`🚀 Server online - Mode: ${health.mode} - Components: TF=${health.components.tensorflow_hub ? '✅' : '❌'} FAISS=${health.components.faiss_index ? '✅' : '❌'}`, 'success');
+                } else {
+                    throw new Error('Server không phản hồi');
+                }
+            } catch (error) {
+                showStatus('❌ Không thể kết nối server. Hãy chạy backend trước: python src/api/frame_search_backend.py', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
