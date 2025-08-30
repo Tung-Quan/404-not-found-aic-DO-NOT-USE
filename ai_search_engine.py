@@ -98,6 +98,86 @@ class EnhancedAIVideoSearchEngine:
         # Load metadata
         self.load_metadata()
     
+    # ---------- Alignment helpers ----------
+    def _norm_path(self, p: str) -> str:
+        try:
+            pp = Path(p)
+            if not pp.is_absolute():
+                pp = (Path.cwd() / pp).resolve()
+            return str(pp).replace("\\", "/")
+        except Exception:
+            return str(p).replace("\\", "/")
+
+    def _emb_manifest_path(self, model_key: str) -> Path:
+        emb_dir = self.index_dir / "embeddings"
+        emb_dir.mkdir(parents=True, exist_ok=True)
+        return emb_dir / f"image_embeddings_{model_key}.manifest.json"
+
+    def _save_embeddings_manifest(self, model_key: str, frames: List[Dict[str, Any]]) -> None:
+        manifest = {
+            "model_key": model_key,
+            "count": len(frames),
+            "frame_paths": [self._norm_path(fr.get("frame_path", "")) for fr in frames],
+            "created_ts": time.time(),
+            "format": 1,
+        }
+        with open(self._emb_manifest_path(model_key), "w", encoding="utf-8") as f:
+            json.dump(manifest, f, ensure_ascii=False, indent=2)
+
+    def _load_embeddings_manifest(self, model_key: str) -> Optional[List[str]]:
+        p = self._emb_manifest_path(model_key)
+        if not p.exists():
+            return None
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            fps = data.get("frame_paths") or []
+            return [self._norm_path(x) for x in fps]
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to read manifest for {model_key}: {e}")
+            return None
+
+    def _apply_manifest_to_metadata(self, ordered_paths: List[str]) -> None:
+        """Reorder & filter self.frames_metadata to match embeddings order."""
+        if not ordered_paths:
+            return
+        # Build lookup: normalized frame_path -> record
+        by_path = {}
+        for rec in self.frames_metadata:
+            fp = rec.get("frame_path") or rec.get("abs_path") or rec.get("image_path") or ""
+            fp = self._norm_path(fp)
+            if fp:
+                by_path[fp] = rec
+
+        aligned: List[Dict[str, Any]] = []
+        for fp in ordered_paths:
+            rec = by_path.get(fp)
+            if rec is None:
+                rec = {"frame_path": fp}
+            # minimal UI fields if your frontend expects them
+            try:
+                self._ensure_ui_fields(rec)  # safe if method exists
+            except Exception:
+                pass
+            aligned.append(rec)
+
+        self.frames_metadata = aligned  # now lengths match exactly
+
+    def _attempt_align_to_embeddings(self, model_key: str, emb_count: int) -> bool:
+        """Try to align metadata to embeddings using manifest, else trim."""
+        manifest_paths = self._load_embeddings_manifest(model_key)
+        if manifest_paths and len(manifest_paths) == emb_count:
+            self._apply_manifest_to_metadata(manifest_paths)
+            print(f"🔗 Restored metadata order from manifest ({len(self.frames_metadata)} frames).")
+            return True
+
+        # Fallback: trim current metadata (best-effort)
+        if self.frames_metadata and len(self.frames_metadata) >= emb_count > 0:
+            print(f"⚠️ No manifest; trimming metadata from {len(self.frames_metadata)} to {emb_count}.")
+            self.frames_metadata = self.frames_metadata[:emb_count]
+            return True
+        return False
+
     def _setup_optimal_device(self) -> str:
         """Setup optimal compute device with GPU priority"""
         if PYTORCH_AVAILABLE:
@@ -463,29 +543,45 @@ class EnhancedAIVideoSearchEngine:
             return None
     
     def load_metadata(self):
-        """Load frames metadata, or auto-generate from all .jpg files in frames/ if missing/incomplete"""
+        """Load frames metadata, or auto-generate from frames/ if missing/incomplete"""
         metadata_file = self.index_dir / "metadata.json"
-        frames_dir = Path("frames")
-        all_frame_files = []
-        for root, dirs, files in os.walk(frames_dir):
+        frames_dir = Path("frames")  # keep your current root; change if needed
+        all_frame_files: List[str] = []
+
+        for root, _, files in os.walk(frames_dir):
             for file in files:
-                if file.lower().endswith('.jpg'):
+                if file.lower().endswith(('.jpg', '.jpeg', '.png')):
                     all_frame_files.append(str(Path(root) / file))
+
+        all_frame_files.sort()  # stable ordering
+
         if metadata_file.exists():
             with open(metadata_file, 'r', encoding='utf-8') as f:
                 loaded_meta = json.load(f)
-            # Only keep frames that exist on disk
-            self.frames_metadata = [m for m in loaded_meta if Path(m['frame_path']).exists()]
-            # Add any missing frames from disk
-            existing_paths = set(m['frame_path'] for m in self.frames_metadata)
+            # only keep frames that exist on disk
+            on_disk = set(self._norm_path(p) for p in all_frame_files)
+            kept = []
+            for m in loaded_meta:
+                fp = self._norm_path(m.get('frame_path', ''))
+                if fp in on_disk:
+                    # ensure normalized path is stored
+                    m['frame_path'] = fp
+                    kept.append(m)
+
+            # add any missing frames from disk
+            existing_paths = set(m['frame_path'] for m in kept)
             for frame_path in all_frame_files:
-                if frame_path not in existing_paths:
-                    self.frames_metadata.append({'frame_path': frame_path})
-            print(f"📊 Loaded {len(self.frames_metadata)} frame records (from metadata + disk)")
+                npth = self._norm_path(frame_path)
+                if npth not in existing_paths:
+                    kept.append({'frame_path': npth})
+
+            self.frames_metadata = kept
+            print(f"📊 Loaded {len(self.frames_metadata)} frame records (metadata + disk).")
         else:
             # No metadata, generate from disk
-            self.frames_metadata = [{'frame_path': frame_path} for frame_path in all_frame_files]
-            print(f"📊 Auto-generated {len(self.frames_metadata)} frame records from disk")
+            self.frames_metadata = [{'frame_path': self._norm_path(p)} for p in all_frame_files]
+            print(f"📊 Auto-generated {len(self.frames_metadata)} frame records from disk.")
+
     
     def initialize_default_models(self) -> bool:
         """Initialize default models for basic functionality"""
@@ -535,11 +631,29 @@ class EnhancedAIVideoSearchEngine:
         if not force_rebuild and embeddings_file.exists():
             print(f"📁 Loading existing embeddings for {model_key}...")
             try:
-                self.image_embeddings[model_key] = np.load(embeddings_file)
-                print(f"✅ Loaded {len(self.image_embeddings[model_key])} embeddings")
+                arr = np.load(embeddings_file)
+                self.image_embeddings[model_key] = arr
+                print(f"✅ Loaded {len(arr)} embeddings")
+
+                # Align metadata to embeddings order
+                if len(self.frames_metadata) != len(arr):
+                    if not self._attempt_align_to_embeddings(model_key, len(arr)):
+                        # If metadata is vastly different, auto-rebuild once
+                        mismatch = abs(len(self.frames_metadata) - len(arr))
+                        ratio = mismatch / max(1, len(arr))
+                        if ratio > 0.1:  # >10% mismatch → rebuild
+                            print(f"🛠️ Large mismatch (emb={len(arr)} vs meta={len(self.frames_metadata)}). Rebuilding embeddings...")
+                            return self.build_embeddings_index(model_key=model_key, force_rebuild=True)
+
+                # (Re)build FAISS for fast search if available
+                if FAISS_AVAILABLE:
+                    self.build_faiss_index(model_key)
+
                 return True
             except Exception as e:
                 print(f"⚠️ Error loading embeddings: {e}")
+
+
         
         print(f"🔄 Building image embeddings with {model_key}...")
         print(f"🚀 Using batch processing (batch_size={self.batch_size}) for GPU optimization")
@@ -592,7 +706,8 @@ class EnhancedAIVideoSearchEngine:
         if all_embeddings and len(all_embeddings) == len(successful_frames):
             self.image_embeddings[model_key] = np.array(all_embeddings)
             self.frames_metadata = successful_frames
-            
+            self._save_embeddings_manifest(model_key, self.frames_metadata)
+
             # Save embeddings
             np.save(embeddings_file, self.image_embeddings[model_key])
             print(f"✅ Built and saved {len(all_embeddings)} embeddings for {model_key}")
@@ -667,26 +782,29 @@ class EnhancedAIVideoSearchEngine:
         start_time = time.time()
         
         if use_faiss and model_key in self.faiss_indexes:
-            # Use FAISS for fast search
-            query_embedding = query_embedding.reshape(1, -1).astype('float32')
-            faiss.normalize_L2(query_embedding)
-            
-            distances, indices = self.faiss_indexes[model_key].search(query_embedding, top_k)
-            
+            q = query_embedding.reshape(1, -1).astype('float32')
+            faiss.normalize_L2(q)  # cosine with IndexFlatIP
+            distances, indices = self.faiss_indexes[model_key].search(q, top_k)
+
             results = []
-            for distance, idx in zip(distances[0], indices[0]):
-                if idx < len(self.frames_metadata):
+            for sim, idx in zip(distances[0], indices[0]):
+                if 0 <= idx < len(self.frames_metadata):
                     frame_data = self.frames_metadata[idx].copy()
-                    # Convert distance to similarity score (0=identical, higher=less similar)
-                    # Use 1/(1+distance) to convert distance to similarity (0-1 range)
-                    similarity = 1.0 / (1.0 + float(distance))
+                    similarity = float(sim)  # cosine ∈ [-1, 1]
                     frame_data['similarity_score'] = similarity
-                    frame_data['distance'] = float(distance)
-                    frame_data['score'] = similarity  # For API compatibility
+                    frame_data['score'] = similarity
                     frame_data['model_used'] = model_key
                     results.append(frame_data)
+
+
         else:
             # Fallback to numpy similarity
+            # --- Fallback to numpy similarity ---
+            # Ensure metadata aligned to embeddings length
+            emb_len = int(self.image_embeddings[model_key].shape[0])
+            if len(self.frames_metadata) != emb_len:
+                if not self._attempt_align_to_embeddings(model_key, emb_len):
+                    print(f"⚠️ Embedding/metadata mismatch persists (emb={emb_len}, meta={len(self.frames_metadata)}).")
             similarities = np.dot(self.image_embeddings[model_key], query_embedding)
             top_indices = np.argsort(similarities)[-top_k:][::-1]
             

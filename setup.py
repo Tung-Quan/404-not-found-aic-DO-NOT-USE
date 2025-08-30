@@ -862,14 +862,14 @@ def main():
     # Setup embedding system (chỉ tạo embedding, không khởi tạo dataset/web interface)
     setup_embedding_system()
     
-    # Smart install dependencies based on Python version
-    if not smart_install_requirements(requirements_file, mode):
-        print("❌ Failed to install dependencies")
-        print("\n🔧 Troubleshooting:")
-        print("1. Check internet connection")
-        print("2. Try: pip install --upgrade pip")
-        print("3. Manual NumPy fix: pip uninstall numpy -y && pip install 'numpy<2'")
-        sys.exit(1)
+    # # Smart install dependencies based on Python version
+    # if not smart_install_requirements(requirements_file, mode):
+    #     print("❌ Failed to install dependencies")
+    #     print("\n🔧 Troubleshooting:")
+    #     print("1. Check internet connection")
+    #     print("2. Try: pip install --upgrade pip")
+    #     print("3. Manual NumPy fix: pip uninstall numpy -y && pip install 'numpy<2'")
+    #     sys.exit(1)
     
     # Install GPU packages (if applicable for Python version)
     install_gpu_packages(python_version)
@@ -887,8 +887,6 @@ def main():
     # Create installation summary
     create_installation_summary()
 
-    # Setup embedding system (chỉ tạo embedding, không khởi tạo dataset/web interface)
-    setup_embedding_system()
     
     # Completion message
     print_completion_message(mode, python_version)
