@@ -93,7 +93,6 @@ tmp/
 .env
 .env.local
 .env.*.local
-.venv310
 
 # Large data files
 *.parquet
@@ -121,10 +120,9 @@ index/faiss/
 # Model cache
 .cache/
 models/
-datasets/
+models_cache/
+map-keyframes/
+objects/
 frames/
 embeddings/
-index/
-models_cache/
-static/
-data/
+datasets/

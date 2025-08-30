@@ -755,12 +755,13 @@ def setup_embedding_system():
             print(f"   {emb_path}: {emb_count} vectors")
             if emb_count != frame_count:
                 print(f"⚠️ Số lượng embedding không khớp với số lượng frame! Tự động tạo lại: {script_path}")
-                subprocess.run(f'{sys.executable} {script_path}', shell=True)
+                # subprocess.run(f"{sys.executable} {script_path}", shell=True)
+                subprocess.run([sys.executable, script_path], shell=True)
             else:
                 print(f"✅ Số lượng embedding khớp với frame")
         else:
             print(f"❌ Chưa có embedding: {emb_path}. Tự động tạo: {script_path}")
-            subprocess.run(f'{sys.executable} {script_path}', shell=True)
+            subprocess.run([sys.executable, script_path], shell=True)
     print("🎯 Embedding system ready!")
     return True
 
@@ -856,34 +857,35 @@ def main():
     create_directories()
     
     # Tự động tách frame nếu chưa có
-    auto_extract_frames_if_needed()
+    # auto_extract_frames_if_needed()
     
+    # Setup embedding system (chỉ tạo embedding, không khởi tạo dataset/web interface)
+    setup_embedding_system()
     
+    # Smart install dependencies based on Python version
+    if not smart_install_requirements(requirements_file, mode):
+        print("❌ Failed to install dependencies")
+        print("\n🔧 Troubleshooting:")
+        print("1. Check internet connection")
+        print("2. Try: pip install --upgrade pip")
+        print("3. Manual NumPy fix: pip uninstall numpy -y && pip install 'numpy<2'")
+        sys.exit(1)
     
-    # # Smart install dependencies based on Python version
-    # if not smart_install_requirements(requirements_file, mode):
-    #     print("❌ Failed to install dependencies")
-    #     print("\n🔧 Troubleshooting:")
-    #     print("1. Check internet connection")
-    #     print("2. Try: pip install --upgrade pip")
-    #     print("3. Manual NumPy fix: pip uninstall numpy -y && pip install 'numpy<2'")
-    #     sys.exit(1)
-    
-    # # Install GPU packages (if applicable for Python version)
-    # install_gpu_packages(python_version)
+    # Install GPU packages (if applicable for Python version)
+    install_gpu_packages(python_version)
     
     # Create config files
-    # create_env_template()
+    create_env_template()
     
     # Verify installation with NumPy check
-    # verification_success = verify_installation()
+    verification_success = verify_installation()
     
-    # # Test GPU (optional)
-    # if python_version.minor <= 11:
-    #     test_gpu_functionality()
+    # Test GPU (optional)
+    if python_version.minor <= 11:
+        test_gpu_functionality()
 
     # Create installation summary
-    # create_installation_summary()
+    create_installation_summary()
 
     # Setup embedding system (chỉ tạo embedding, không khởi tạo dataset/web interface)
     setup_embedding_system()
@@ -891,17 +893,17 @@ def main():
     # Completion message
     print_completion_message(mode, python_version)
 
-    # # Final status
-    # if verification_success:
-    #     print("\n🎯 STATUS: Ready to use!")
-    #     print("🚀 Quick start: python main_launcher.py")
-    #     print("🌐 Để chạy web interface, hãy dùng lệnh sau sau khi setup xong:")
-    #     print("   python web_interface.py hoặc cd api && python app.py")
-    #     print("⚡ Lưu ý: Các chức năng quản lý dataset, khởi tạo web server sẽ do web_interface.py xử lý. Không cần khởi tạo lại trong setup.py!")
-    # else:
-    #     print("\n⚠️ STATUS: Installed with warnings")
-    #     print("💡 Most features should work, some AI features may be limited")
-    #     print("🔧 Manual NumPy fix: pip uninstall numpy -y && pip install 'numpy<2'")
+    # Final status
+    if verification_success:
+        print("\n🎯 STATUS: Ready to use!")
+        print("🚀 Quick start: python main_launcher.py")
+        print("🌐 Để chạy web interface, hãy dùng lệnh sau sau khi setup xong:")
+        print("   python web_interface.py hoặc cd api && python app.py")
+        print("⚡ Lưu ý: Các chức năng quản lý dataset, khởi tạo web server sẽ do web_interface.py xử lý. Không cần khởi tạo lại trong setup.py!")
+    else:
+        print("\n⚠️ STATUS: Installed with warnings")
+        print("💡 Most features should work, some AI features may be limited")
+        print("🔧 Manual NumPy fix: pip uninstall numpy -y && pip install 'numpy<2'")
 
 if __name__ == "__main__":
     main()

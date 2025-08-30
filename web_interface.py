@@ -18,17 +18,6 @@ import asyncio
 from typing import List, Dict, Optional
 import logging
 from datetime import datetime
-from pathlib import Path
-import os
-
-def _thumb_url_from_path(frame_path: str, dataset_path: str) -> str:
-    if not frame_path:
-        return ""
-    frames_root = Path(dataset_path) / "frames"
-    rel = Path(frame_path).resolve().relative_to(frames_root.resolve())
-    fixed_rel = str(rel).replace("\\", "/")
-    return f"/frames/{fixed_rel}"
-
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -39,8 +28,6 @@ app = FastAPI(title="AI Video Search - Web Interface", version="2.0.0")
 # Setup templates and static files
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
-# app.mount("/frames", StaticFiles(directory="frames"), name="frames")   # <-- thêm
-# app.mount("/videos", StaticFiles(directory="videos"), name="videos")   # <-- thêm
 
 # Global managers
 model_manager = None
@@ -225,7 +212,7 @@ async def switch_dataset(request: Request):
         
         # Rebuild embeddings for new dataset if needed
         if search_engine:
-            search_engine.build_embeddings_index()
+            await search_engine.build_embeddings_index()
         
         return {
             "success": True,
@@ -361,54 +348,50 @@ async def switch_model(request: Request):
 
 @app.get("/search")
 async def get_search(q: str, topk: int = 12):
+    """GET endpoint for search - for compatibility"""
     if not q:
         return {"error": "Query parameter 'q' is required"}
+    
     try:
+        # Perform search using current search engine
         results = search_engine.search_similar_frames(q, top_k=topk)
-
-        # 🔧 LẤY dataset_path để build URL frames đúng thư mục
-        dataset_path = available_datasets.get(current_dataset, {}).get("path", ".")
-
+        
+        # Format results to ensure all fields are present
         formatted_results = []
         for result in results:
-            # similarity
-            similarity = result.get("similarity_score", result.get("similarity", 0.0)) or 0.0
+            # Safely handle similarity score
+            similarity = result.get("similarity_score", result.get("similarity", 0.0))
+            if similarity is None:
+                similarity = 0.0
             try:
                 similarity = float(similarity)
             except (ValueError, TypeError):
                 similarity = 0.0
-
-            # timestamp
+            
+            # Calculate timestamp from frame number if available
             timestamp = result.get("timestamp_seconds", 0.0)
-            if (not timestamp) and ("frame_number" in result):
+            if timestamp == 0.0 and "frame_number" in result:
                 frame_number = result.get("frame_number", 0)
-                timestamp = (frame_number or 0) / 30.0
+                # Calculate timestamp assuming 30 FPS (1 frame = 1/30 second)
+                timestamp = frame_number / 30.0
+            
+            if timestamp is None:
+                timestamp = 0.0
             try:
-                timestamp = float(timestamp or 0.0)
+                timestamp = float(timestamp)
             except (ValueError, TypeError):
                 timestamp = 0.0
-
-            # 🔧 video_name từ đường dẫn frame
-            fp = (result.get("frame_path") or "").replace("\\", "/")
-            path_parts = fp.split("/")
-            video_name = result.get("video_name") or (path_parts[-2] if len(path_parts) >= 2 else "Unknown")
-
-            # 🔧 URL ảnh đúng theo thư mục con
-            thumb = _thumb_url_from_path(fp, dataset_path)
-
-            formatted_results.append({
-                "frame_path": fp,
-                "video_name": video_name,       # hoặc "video_id"
+            
+            formatted_result = {
+                "frame_path": result.get("frame_path", ""),
                 "timestamp": timestamp,
                 "frame_number": result.get("frame_number", 0),
                 "similarity": similarity,
-                "dataset": result.get("dataset", current_dataset),
-
-                # 🔧 QUAN TRỌNG: dùng đúng URL này ở frontend
-                "thumbnail_url": thumb,
-                # (không dựng frame_url kiểu cũ vì dễ sai thư mục)
-            })
-
+                "video_name": result.get("video_name", "Unknown"),
+                "dataset": result.get("dataset", current_dataset)
+            }
+            formatted_results.append(formatted_result)
+        
         return {
             "results": formatted_results,
             "query": q,
@@ -416,6 +399,7 @@ async def get_search(q: str, topk: int = 12):
             "dataset": current_dataset,
             "model": getattr(search_engine, 'current_model', 'clip_vit_base')
         }
+        
     except Exception as e:
         logger.error(f"Search error: {e}")
         return {"error": str(e)}
@@ -448,11 +432,7 @@ async def web_search(request: Request):
         results = search_engine.search_similar_frames(query, top_k=top_k)
         
         # Format results for web display
-        results = search_engine.search_similar_frames(query, top_k=top_k)
-
-        dataset_path = available_datasets.get(current_dataset, {}).get("path", ".")
         formatted_results = []
-
         for result in results:
             # Safely handle similarity score
             similarity = result.get("similarity_score", result.get("similarity", 0.0))
@@ -486,15 +466,16 @@ async def web_search(request: Request):
                 if len(path_parts) >= 2:
                     video_name = path_parts[-2]  # Get folder name
             
-            fp = result.get("frame_path", "")
-            thumb = _thumb_url_from_path(fp, dataset_path)
+            frame_path = result.get("frame_path", "")
+            file_name = Path(frame_path).name if frame_path else ""
             formatted_results.append({
-                "frame_path": result.get("frame_path", ""),
+                "frame_path": frame_path,
+                "file_name": file_name,
                 "video_name": video_name,
                 "timestamp": timestamp,
                 "frame_number": result.get("frame_number", 0),
                 "similarity_score": similarity,
-                "thumbnail_url": thumb       # ⬅️ thêm trường này
+                "frame_url": f"/frames/{file_name}"
             })
         
         active_models = search_engine.get_active_models()
@@ -547,16 +528,17 @@ async def get_stats():
         return {"error": str(e)}
 
 # Serve frame images
-from fastapi.responses import FileResponse, JSONResponse
-
-@app.get("/frames/{subpath:path}")   # ⬅️ cho phép frames/<folder>/<file>.jpg
-async def serve_frame(subpath: str):
+@app.get("/frames/{frame_name}")
+async def serve_frame(frame_name: str):
+    """Serve frame images"""
     dataset_path = available_datasets.get(current_dataset, {}).get("path", ".")
-    frame_path = Path(dataset_path) / "frames" / subpath
+    frame_path = Path(dataset_path) / "frames" / frame_name
+    
     if frame_path.exists():
+        from fastapi.responses import FileResponse
         return FileResponse(frame_path)
-    return JSONResponse({"error": "Frame not found", "path": str(frame_path)}, status_code=404)
-
+    else:
+        return {"error": "Frame not found"}
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,174 +1,76 @@
-import os, sys, time, json
-import numpy as np
-import torch
-from pathlib import Path
+import os, numpy as np, torch
 from PIL import Image
-from sys import stdout
-from transformers import CLIPModel, CLIPProcessor
+from tqdm import tqdm
+from transformers import CLIPProcessor, CLIPModel
 
-# ------------------ Config ------------------
-MODEL_ID   = os.environ.get("CLIP_MODEL_ID", "openai/clip-vit-base-patch16")
-DEVICE     = "cuda" if torch.cuda.is_available() else "cpu"
-DTYPE      = torch.float16 if DEVICE == "cuda" else torch.float32
-BATCH      = int(os.environ.get("CLIP_BATCH", "64"))
-FRAMES_DIR = Path(os.environ.get("FRAMES_DIR", "frames"))
-OUT_DIR    = Path(os.environ.get("EMB_DIR", "index/embeddings"))
-OUT_DIR.mkdir(parents=True, exist_ok=True)
-
-EMB_PATH   = OUT_DIR / "frames_clip.f16.mmap"
-MANIFEST   = OUT_DIR / "frames_clip.manifest.json"
+MODEL_ID = 'openai/clip-vit-base-patch16'
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+DTYPE = torch.float16 if torch.cuda.is_available() else torch.float32
+BATCH = int(os.getenv('BATCH', '64'))
+DIM = 512
 
 print("🎬 CLIP ENCODING - STANDARD")
 print("=" * 60)
 print(f"🎯 Model: {MODEL_ID}")
 print(f"🖥️  Device: {DEVICE}")
 print(f"📦 Batch Size: {BATCH}")
-print(f"🎨 Data Type: {DTYPE}\n")
+print(f"📏 Embedding Dimension: {DIM}")
+print(f"🎨 Data Type: {DTYPE}")
 
-# ------------------ Helpers ------------------
-def iter_images(root: Path):
-    for ext in ("*.jpg", "*.jpeg", "*.png"):
-        for p in root.rglob(ext):
-            yield p
+print("\n🔄 Loading CLIP model...")
+processor = CLIPProcessor.from_pretrained(MODEL_ID)
+model = CLIPModel.from_pretrained(MODEL_ID).to(DEVICE).eval()
+print("✅ CLIP model loaded successfully!")
 
-def norm_path(p: Path) -> str:
-    try:
-        pp = p if p.is_absolute() else (Path.cwd() / p).resolve()
-        return str(pp).replace("\\", "/")
-    except Exception:
-        return str(p).replace("\\", "/")
+print("\n📋 Quét toàn bộ file .jpg trong frames bằng os.walk...")
+frame_files = []
+for root, dirs, files in os.walk('frames'):
+    for file in files:
+        if file.lower().endswith('.jpg'):
+            frame_files.append(os.path.join(root, file))
+N = len(frame_files)
+print(f"📊 Tổng số frame .jpg cần encode: {N:,}")
 
-def load_clip():
-    """
-    Prefer safetensors to avoid torch>=2.6 requirement for .bin.
-    Force use_fast=False to avoid processor fast-path bugs on some transformers versions.
-    """
-    try:
-        model = CLIPModel.from_pretrained(
-            MODEL_ID,
-            torch_dtype=DTYPE,
-            low_cpu_mem_usage=True,
-            use_safetensors=True,
-            local_files_only=False,
-        ).to(DEVICE).eval()
-        processor = CLIPProcessor.from_pretrained(MODEL_ID, use_fast=False)
-        return model, processor
-    except Exception as e:
-        raise RuntimeError(
-            f"Cannot load {MODEL_ID} as safetensors. "
-            f"Upgrade torch>=2.6 or choose a model with safetensors. Root error: {e}"
-        )
+os.makedirs('index/embeddings', exist_ok=True)
+mem_path = 'index/embeddings/frames_clip.f16.mmap'
+print(f"💾 Output path: {mem_path}")
+mem = np.memmap(mem_path, dtype='float16', mode='w+', shape=(N, DIM))
 
-def infer_dim(model, processor):
-    """Detect image embedding dimension (projection_dim or warmup run)."""
-    dim = int(getattr(getattr(model, "config", object()), "projection_dim", 0) or 0)
-    if dim > 0:
-        return dim
-    tmp = Image.new("RGB", (224, 224), color=(128, 128, 128))
-    with torch.inference_mode():
-        ins = processor(images=[tmp], return_tensors="pt")
-        ins = {k: v.to(DEVICE) for k, v in ins.items()}
+images, idx_buf = [], []
+
+def flush():
+    if not images:
+        return
+    with torch.no_grad():
+        ins = processor(images=images, return_tensors='pt').to(DEVICE)
+        for k in ins:
+            ins[k] = ins[k].to(DTYPE)
         out = model.get_image_features(**ins)
-        dim = int(out.shape[-1])
-    return dim
+        out = torch.nn.functional.normalize(out, dim=-1)
+        arr = out.detach().cpu().to(torch.float16).numpy()
+    s, e = idx_buf[0], idx_buf[-1] + 1
+    mem[s:e] = arr
+    images.clear()
+    idx_buf.clear()
 
-def save_manifest(frame_paths, dim):
-    data = {
-        "model_id": MODEL_ID,
-        "count": len(frame_paths),
-        "dim": dim,
-        "created_ts": time.time(),
-        "frame_paths": [norm_path(Path(p)) for p in frame_paths],
-        "dtype": "float16",
-        "device": DEVICE,
-    }
-    with open(MANIFEST, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-# ------------------ Main ------------------
-def main():
-    print("🔄 Loading CLIP (safetensors preferred, use_fast=False)...")
-    model, processor = load_clip()
-    print("✅ CLIP model loaded.\n")
-
-    files = [str(p) for p in iter_images(FRAMES_DIR)]
-    files.sort()
-    N = len(files)
-    print(f"🖼️ Frames: {N:,}")
-    if N == 0:
-        print(f"❌ No images found in {FRAMES_DIR}")
-        sys.exit(1)
-
-    print("🔍 Inferring embedding dimension...")
-    DIM = infer_dim(model, processor)
-    print(f"📏 Embedding Dimension (image): {DIM}\n")
-
-    print(f"💾 Output (memmap): {EMB_PATH}")
-    mem = np.memmap(EMB_PATH, dtype="float16", mode="w+", shape=(N, DIM))
-
-    # Progress setup
-    use_bar = stdout.isatty()
-    try:
-        from tqdm import tqdm
-        bar = tqdm(total=N, desc="Encoding frames", unit="img",
-                   dynamic_ncols=True, disable=not use_bar)
-    except Exception:
-        bar = None
-        use_bar = False
-    last_log = time.time()
-
-    images, idx_buf = [], []
-
-    def flush_progress():
-        nonlocal last_log
-        bsz = len(images)
-        if bsz == 0:
-            return
-        s, e = idx_buf[0], idx_buf[-1] + 1
-        with torch.inference_mode():
-            ins = processor(images=images, return_tensors="pt")
-            ins = {k: v.to(DEVICE) for k, v in ins.items()}
-            feats = model.get_image_features(**ins)
-            feats = torch.nn.functional.normalize(feats, p=2, dim=1)
-            arr = feats.detach().to(torch.float16).cpu().numpy()
-        if arr.shape != (e - s, DIM):
-            raise RuntimeError(f"Shape mismatch: arr={arr.shape}, slice={(e - s, DIM)}")
-        mem[s:e] = arr
-        for im in images:
-            try: im.close()
-            except: pass
-        images.clear()
-        idx_buf.clear()
-
-        if use_bar and bar is not None:
-            bar.update(bsz)
-        else:
-            now = time.time()
-            if now - last_log >= 2:
-                print(f"Processed {e}/{N} ({e/N:.1%})", flush=True)
-                last_log = now
-
-    print(f"🔄 Encoding {N:,} frames with CLIP...\n")
-    for i, fp in enumerate(files):
-        img = Image.open(fp).convert("RGB")
-        images.append(img)
-        idx_buf.append(i)
-        if len(images) >= BATCH:
-            flush_progress()
-    flush_progress()
-    if use_bar and bar is not None:
-        bar.close()
-    mem.flush()
-
-    save_manifest(files, DIM)
-    size_mb = os.path.getsize(EMB_PATH) / (1024 * 1024)
-    print("\n🎉 DONE! CLIP embeddings saved.")
-    print(f"📁 {EMB_PATH}  |  shape=({N},{DIM}) float16  |  ~{size_mb:.1f} MB")
-    print(f"📝 Manifest: {MANIFEST}")
-
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\n⛔ Stopped by user")
-        sys.exit(130)
+print(f"\n🔄 Đang encode {N:,} frames với CLIP...")
+print("⏱️  Quá trình này có thể lâu tuỳ vào cấu hình máy...")
+for i, frame_path in tqdm(enumerate(frame_files), total=N, desc="Encoding frames"):
+    img = Image.open(frame_path).convert('RGB')
+    images.append(img)
+    idx_buf.append(i)
+    if len(images) >= BATCH:
+        flush()
+flush()
+mem.flush()
+print(f"\n🎉 SUCCESS! CLIP embeddings saved!")
+print(f"📁 Location: {mem_path}")
+print(f"📊 Shape: {mem.shape}")
+print(f"💾 Size: {os.path.getsize(mem_path) / 1024 / 1024:.1f} MB")
+print(f"\n🎯 Next steps:")
+print("1. Build FAISS index: python scripts/build_faiss.py")
+print("2. Update API servers to use CLIP")
+print("3. Test performance improvements")
+print(f"\n✨ Expected improvements:")
+print("- 🚀 Fast inference")
+print("- 🎯 Better quality scores")

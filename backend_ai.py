@@ -291,7 +291,6 @@ def start_full_backend():
                         search_engine.build_embeddings_index()
                         
                         stats = search_engine.get_stats()
-                        
                         return {
                             "status": "success",
                             "message": "Embeddings built successfully",

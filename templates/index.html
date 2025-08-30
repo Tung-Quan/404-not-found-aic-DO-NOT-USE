@@ -1,399 +1,559 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>🎯 Enhanced Video Search</title>
-  <style>
-    :root{
-      --bg1:#667eea;--bg2:#764ba2;
-      --card-bg:#fff;--ink:#2d3748;--muted:#666;--muted2:#888;
-      --line:#e1e5e9;--brand1:#4facfe;--brand2:#00f2fe;
-      --chip:#e2e8f0;--chip-ink:#4a5568;--info:#e8f4fd;--err:#fed7d7;--err-ink:#c53030;
-    }
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{
-      font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
-      background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%);
-      min-height:100vh;padding:20px;color:var(--ink)
-    }
-    .container{max-width:1200px;margin:0 auto;background:var(--card-bg);border-radius:15px;box-shadow:0 20px 40px rgba(0,0,0,.1);overflow:hidden}
-    .header{background:linear-gradient(135deg,var(--brand1) 0%,var(--brand2) 100%);color:#fff;padding:30px;text-align:center}
-    .header h1{font-size:2.2em;margin-bottom:8px;text-shadow:0 2px 4px rgba(0,0,0,.25)}
-    .header p{opacity:.95}
-    .search-section{padding:28px 28px 18px;background:#f8f9ff}
-    .grid{display:grid;gap:15px}
-    .grid-2{grid-template-columns:1fr 1fr}
-    .grid-3{grid-template-columns:repeat(3,1fr)}
-    @media (max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}}
-    .model-selector{display:grid;gap:10px}
-    label{font-weight:700;color:#2d3748;font-size:.95em}
-    .model-select,.endpoint-select,.num-input,.search-input{
-      width:100%;padding:12px 14px;border:2px solid var(--line);border-radius:10px;background:#fff;font-size:1em;transition:border-color .2s,box-shadow .2s
-    }
-    .model-select:focus,.endpoint-select:focus,.num-input:focus,.search-input:focus{
-      outline:none;border-color:var(--brand1);box-shadow:0 0 0 3px rgba(79,172,254,.12)
-    }
-    .search-form{display:flex;gap:12px;margin-top:12px}
-    .search-input{flex:1}
-    .search-btn{
-      padding:12px 22px;background:linear-gradient(135deg,var(--brand1) 0%,var(--brand2) 100%);
-      color:#fff;border:none;border-radius:10px;font-size:1.05em;font-weight:700;cursor:pointer;transition:transform .2s
-    }
-    .search-btn:hover{transform:translateY(-2px)}
-    .search-btn:disabled{opacity:.6;transform:none;cursor:not-allowed}
-    .suggestions{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px}
-    .suggestion-btn{
-      padding:8px 14px;background:#fff;border:2px solid var(--line);border-radius:18px;cursor:pointer;transition:all .2s;font-size:.9em
-    }
-    .suggestion-btn:hover{background:var(--brand1);color:#fff;border-color:var(--brand1)}
-    .loading{display:none;text-align:center;padding:32px;color:var(--muted);font-size:1.05em}
-    .results-section{padding:0 28px 28px}
-    .search-info{background:var(--info);padding:18px;border-radius:10px;margin:18px 0;border-left:4px solid var(--brand1)}
-    .info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:10px}
-    .info-item{background:#fff;padding:12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-    .info-label{font-weight:700;color:var(--brand1);font-size:.85em;margin-bottom:4px}
-    .info-value{font-size:1.05em}
-    .results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:18px}
-    .result-card{
-      background:#fff;border-radius:14px;padding:16px;border:1px solid var(--line);
-      box-shadow:0 5px 15px rgba(0,0,0,.08);transition:transform .25s,box-shadow .25s
-    }
-    .result-card:hover{transform:translateY(-4px);box-shadow:0 10px 24px rgba(0,0,0,.12)}
-    .result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-    .result-score{background:linear-gradient(135deg,var(--brand1) 0%,var(--brand2) 100%);color:#fff;padding:4px 10px;border-radius:18px;font-weight:700;font-size:.85em}
-    .thumb{width:100%;height:190px;object-fit:cover;border-radius:10px;margin:8px 0}
-    .result-video{font-weight:700;color:var(--ink);margin:6px 0 2px}
-    .result-timestamp{color:var(--muted);font-size:.9em;margin-bottom:4px}
-    .result-frame{color:var(--muted2);font-size:.85em;margin-bottom:10px}
-    .result-title{background:#f8f9ff;padding:10px;border-radius:8px;margin:8px 0;color:#4a5568;border-left:3px solid var(--brand1);font-style:italic}
-    .result-labels{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
-    .label-tag{background:var(--chip);color:var(--chip-ink);padding:4px 10px;border-radius:12px;font-size:.8em;font-weight:600}
-    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px}
-    .pill{border:1px dashed var(--line);border-radius:10px;padding:6px 10px;color:var(--muted);font-size:.85em}
-    .link{color:var(--brand1);text-decoration:none;font-weight:600}
-    .no-results{text-align:center;padding:60px;color:var(--muted)}
-    .no-results-icon{font-size:3.5em;margin-bottom:14px;opacity:.5}
-    .error{background:var(--err);color:var(--err-ink);padding:18px;border-radius:10px;border-left:4px solid var(--err-ink);margin:18px 0}
-    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .inline{display:inline-flex;align-items:center;gap:8px}
-    .sep{height:1px;background:var(--line);margin:16px 0}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 Enhanced Video Search</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .search-section {
+            padding: 40px;
+            background: #f8f9ff;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1.1em;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+        
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .search-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .search-btn:disabled {
+            opacity: 0.6;
+            transform: none;
+            cursor: not-allowed;
+        }
+        
+        .model-selector {
+            margin-bottom: 20px;
+        }
+        
+        .model-selector label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+        
+        .model-select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1em;
+            background: white;
+            transition: border-color 0.3s;
+        }
+        
+        .model-select:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+        
+        .suggestions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .suggestion-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+        
+        .suggestion-btn:hover {
+            background: #4facfe;
+            color: white;
+            border-color: #4facfe;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .results-section {
+            padding: 0 40px 40px;
+        }
+        
+        .search-info {
+            background: #e8f4fd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border-left: 4px solid #4facfe;
+        }
+        
+        .search-info h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #4facfe;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            color: #2d3748;
+            font-size: 1.1em;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .result-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 1px solid #e1e5e9;
+        }
+        
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .result-score {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        
+        .result-video {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        .result-timestamp {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+        
+        .result-frame {
+            color: #888;
+            font-size: 0.85em;
+            margin-bottom: 15px;
+        }
+        
+        .result-title {
+            background: #f8f9ff;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-style: italic;
+            color: #4a5568;
+            border-left: 3px solid #4facfe;
+        }
+        
+        .result-labels {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .label-tag {
+            background: #e2e8f0;
+            color: #4a5568;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+        
+        .result-scores {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9em;
+        }
+        
+        .score-item {
+            color: #666;
+        }
+        
+        .score-value {
+            font-weight: bold;
+            color: #4facfe;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+        }
+        
+        .no-results-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #c53030;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .search-form {
+                flex-direction: column;
+            }
+            
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>🎯 Enhanced Video Search</h1>
-      <p>AI-powered multi-modal search (CLIP / Chinese-CLIP / Sentence Transformers)</p>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Enhanced Video Search</h1>
+            <p>AI-powered multi-modal search with Chinese-CLIP & enhanced metadata</p>
+        </div>
+        
+        <div class="search-section">
+            <div class="model-selector">
+                <label for="modelSelect">🤖 Select AI Model:</label>
+                <select id="modelSelect" class="model-select">
+                    <option value="clip_vit_base">CLIP ViT Base - Best for general image-text matching</option>
+                    <option value="clip_vit_large">CLIP ViT Large - Higher accuracy, slower performance</option>
+                    <option value="chinese_clip">Chinese CLIP - Optimized for Chinese/Vietnamese text</option>
+                    <option value="sentence_transformers">Sentence Transformers - Pure text embedding</option>
+                </select>
+            </div>
+            
+            <form id="searchForm" class="search-form">
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    class="search-input" 
+                    placeholder="Search for React tutorials, backend development, ecommerce..." 
+                    autocomplete="off"
+                >
+                <button type="submit" id="searchBtn" class="search-btn">🔍 Search</button>
+            </form>
+            
+            <div class="suggestions">
+                <button class="suggestion-btn" onclick="searchQuery('React programming tutorial')">React tutorial</button>
+                <button class="suggestion-btn" onclick="searchQuery('backend development')">Backend development</button>
+                <button class="suggestion-btn" onclick="searchQuery('ecommerce application')">Ecommerce app</button>
+                <button class="suggestion-btn" onclick="searchQuery('JavaScript coding')">JavaScript coding</button>
+                <button class="suggestion-btn" onclick="searchQuery('deployment AWS')">AWS deployment</button>
+            </div>
+        </div>
+        
+        <div id="loadingDiv" class="loading" style="display: none;">
+            🔄 Searching through video frames...
+        </div>
+        
+        <div id="resultsSection" class="results-section" style="display: none;">
+            <div id="searchInfo" class="search-info"></div>
+            <div id="resultsGrid" class="results-grid"></div>
+        </div>
     </div>
 
-    <div class="search-section">
-      <div class="grid grid-3">
-        <div class="model-selector">
-          <label for="modelSelect">🤖 Select AI Model</label>
-          <select id="modelSelect" class="model-select">
-            <option value="clip_vit_base">CLIP ViT Base — general image-text</option>
-            <option value="clip_vit_large">CLIP ViT Large — higher accuracy</option>
-            <option value="chinese_clip">Chinese CLIP — Chinese/Vietnamese</option>
-            <option value="sentence_transformers">Sentence Transformers — text-only</option>
-          </select>
-        </div>
-
-        <div class="model-selector">
-          <label for="endpointSelect">🌐 Endpoint</label>
-          <select id="endpointSelect" class="endpoint-select" title="Auto will try POST /api/search then fallback to GET /search">
-            <option value="auto">Auto (POST /api/search → GET /search)</option>
-            <option value="post">POST /api/search</option>
-            <option value="get">GET /search</option>
-          </select>
-        </div>
-
-        <div class="model-selector">
-          <label for="topK">📊 Top K</label>
-          <input id="topK" class="num-input" type="number" min="1" max="50" step="1" value="12"/>
-        </div>
-      </div>
-
-      <form id="searchForm" class="search-form">
-        <input
-          type="text"
-          id="searchInput"
-          class="search-input"
-          placeholder="Search frames… (e.g. dog | React tutorial | beach | car)"
-          autocomplete="off"
-        />
-        <button type="submit" id="searchBtn" class="search-btn">🔍 Search</button>
-      </form>
-
-      <div class="suggestions">
-        <button class="suggestion-btn" onclick="searchQuery('dog')">dog</button>
-        <button class="suggestion-btn" onclick="searchQuery('beach')">beach</button>
-        <button class="suggestion-btn" onclick="searchQuery('car')">car</button>
-        <button class="suggestion-btn" onclick="searchQuery('React programming tutorial')">React tutorial</button>
-        <button class="suggestion-btn" onclick="searchQuery('backend development')">Backend</button>
-        <button class="suggestion-btn" onclick="searchQuery('ecommerce application')">Ecommerce</button>
-      </div>
-    </div>
-
-    <div id="loadingDiv" class="loading">🔄 Searching through video frames...</div>
-
-    <div id="resultsSection" class="results-section" style="display:none;">
-      <div id="searchInfo" class="search-info"></div>
-      <div id="resultsGrid" class="results-grid"></div>
-    </div>
-  </div>
-
-  <script>
-    // ===== Utils =====
-    function formatTimestamp(seconds){
-      if(!seconds || seconds <= 0) return "0:00";
-      const h = Math.floor(seconds/3600);
-      const m = Math.floor((seconds%3600)/60);
-      const s = Math.floor(seconds%60);
-      return h>0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
-    }
-    function pct(x){ const n = Number(x||0); return isFinite(n) ? (n*100).toFixed(1)+'%' : '—'; }
-    function ms(x){ const n = Number(x||0); return isFinite(n) ? n.toFixed(1)+'ms' : '—'; }
-
-    // Safe image URL derivation from various fields
-    function deriveImageUrl(rec){
-      const fix = s => String(s||'').replace(/\\/g,'/');
-
-      // Prefer explicit web URLs from backend
-      if(rec.image_url) return rec.image_url;
-      if(rec.thumbnail_url) return rec.thumbnail_url;
-
-      let p = fix(rec.image_path);
-      if(p){
-        if(!p.startsWith('/')) p = '/'+p;
-        if(!p.startsWith('/frames/')) p = '/frames/'+p.replace(/^\/?/,'');
-        return p;
-      }
-
-      // Fallback from absolute frame_path: use last two segments
-      const fp = fix(rec.frame_path);
-      if(fp){
-        const parts = fp.split('/');
-        const last2 = parts.slice(-2).join('/');
-        return '/frames/'+last2;
-      }
-      return '';
-    }
-
-    // Normalize a single result item from either API style
-    function normalizeResult(r){
-      const imgUrl = deriveImageUrl(r);
-      const fileName = r.file_name || (r.frame_path ? r.frame_path.split(/[\\/]/).pop() : '');
-      const frameNum = r.frame_number || r.index || null;
-
-      // similarity fields may vary
-      const sim = (typeof r.final_score === 'number') ? r.final_score
-                : (typeof r.similarity_score === 'number') ? r.similarity_score
-                : (typeof r.similarity === 'number') ? r.similarity
-                : null;
-
-      // timestamp variants
-      const ts = (typeof r.timestamp_seconds === 'number') ? r.timestamp_seconds
-                : (typeof r.timestamp === 'number') ? r.timestamp
-                : (frameNum ? frameNum/30 : 0);
-
-      // video name inference
-      let videoName = r.video_name || r.video || 'Unknown';
-      if(!videoName || videoName.toLowerCase()==='unknown'){
-        const p = imgUrl.split('/');
-        if(p.length >= 3 && p[1]==='frames') videoName = p[p.length-2];
-      }
-
-      const labels = Array.isArray(r.labels) ? r.labels : [];
-
-      return {
-        image_url: imgUrl,
-        video_name: videoName,
-        timestamp: ts,
-        frame_number: frameNum,
-        title: r.title || '',
-        labels,
-        similarity: sim,
-        model_used: r.model_used || '',
-        file_name: fileName,
-        frame_path: r.frame_path || ''
-      };
-    }
-
-    // ===== Elements =====
-    const searchForm = document.getElementById('searchForm');
-    const searchInput = document.getElementById('searchInput');
-    const searchBtn = document.getElementById('searchBtn');
-    const loadingDiv = document.getElementById('loadingDiv');
-    const resultsSection = document.getElementById('resultsSection');
-    const searchInfo = document.getElementById('searchInfo');
-    const resultsGrid = document.getElementById('resultsGrid');
-    const modelSelect = document.getElementById('modelSelect');
-    const endpointSelect = document.getElementById('endpointSelect');
-    const topKInput = document.getElementById('topK');
-
-    searchForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const q = searchInput.value.trim();
-      if(q) performSearch(q);
-    });
-    function searchQuery(q){ searchInput.value = q; performSearch(q); }
-    searchInput.focus();
-
-    // ===== Core search with auto endpoint handling =====
-    async function performSearch(query){
-      const top_k = Math.max(1, Math.min(50, Number(topKInput.value)||12));
-      const selectedModel = modelSelect.value;
-      const endpointMode = endpointSelect.value;
-
-      loadingDiv.style.display = 'block';
-      resultsSection.style.display = 'none';
-      searchBtn.disabled = true;
-      searchBtn.textContent = '🔄 Searching...';
-
-      // Helpers to call each endpoint flavor
-      const callPost = async () => {
-        const res = await fetch('/api/search', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ query, top_k, model: selectedModel })
-        });
-        if(!res.ok) throw new Error(`POST /api/search HTTP ${res.status}`);
-        return res.json();
-      };
-
-      const callGet = async () => {
-        const url = `/search?q=${encodeURIComponent(query)}&topk=${encodeURIComponent(top_k)}`;
-        const res = await fetch(url, { method:'GET', headers:{'Accept':'application/json'} });
-        if(!res.ok) throw new Error(`GET /search HTTP ${res.status}`);
-        return res.json();
-      };
-
-      try{
-        let data = null;
-
-        if(endpointMode === 'post'){
-          data = await callPost();
-        }else if(endpointMode === 'get'){
-          data = await callGet();
-        }else{
-          // auto: try POST first, then fallback to GET
-          try{
-            data = await callPost();
-          }catch(_e){
-            data = await callGet();
-          }
+    <script>
+        // Utility function to format timestamp
+        function formatTimestamp(seconds) {
+            if (!seconds || seconds === 0) {
+                return '0:00';
+            }
+            
+            const hours = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
         }
-
-        loadingDiv.style.display = 'none';
-        searchBtn.disabled = false;
-        searchBtn.textContent = '🔍 Search';
-        displayResults(query, data, selectedModel, top_k);
-
-      }catch(err){
-        loadingDiv.style.display = 'none';
-        searchBtn.disabled = false;
-        searchBtn.textContent = '🔍 Search';
-        showError('Search failed: ' + err.message);
-      }
-    }
-
-    // ===== Render =====
-    function displayResults(query, data, selectedModel, top_k){
-      resultsSection.style.display = 'block';
-
-      // Handle both shapes
-      const results = Array.isArray(data?.results) ? data.results : [];
-      const total = data?.total_results ?? data?.total ?? results.length ?? 0;
-      const searchTime = data?.search_time_ms ?? data?.search_time ?? 0;
-      const dataset = data?.dataset || 'Default';
-      const modelReported = data?.model || selectedModel;
-
-      // Model pretty names
-      const modelNames = {
-        'clip_vit_base':'CLIP ViT Base',
-        'clip_vit_large':'CLIP ViT Large',
-        'chinese_clip':'Chinese CLIP',
-        'sentence_transformers':'Sentence Transformers'
-      };
-
-      searchInfo.innerHTML = `
-        <h3>🔍 Search Results for "${escapeHtml(String(data?.query || query))}"</h3>
-        <div class="info-grid">
-          <div class="info-item"><div class="info-label">🤖 AI Model</div><div class="info-value">${escapeHtml(modelNames[modelReported] || modelReported)}</div></div>
-          <div class="info-item"><div class="info-label">⏱️ Search Time</div><div class="info-value">${ms(searchTime)}</div></div>
-          <div class="info-item"><div class="info-label">📊 Results</div><div class="info-value">${total}</div></div>
-          <div class="info-item"><div class="info-label">📦 Dataset</div><div class="info-value">${escapeHtml(dataset)}</div></div>
-          <div class="info-item"><div class="info-label">Top K</div><div class="info-value">${Number(top_k)||12}</div></div>
-        </div>
-      `;
-
-      if(results.length === 0){
-        resultsGrid.innerHTML = `
-          <div class="no-results">
-            <div class="no-results-icon">🔍</div>
-            <h3>No results found</h3>
-            <p>Try different keywords or the suggestions above.</p>
-          </div>`;
-        return;
-      }
-
-      // Normalize -> render
-      const normalized = results.map(normalizeResult);
-
-      resultsGrid.innerHTML = normalized.map(r => {
-        const simText = (r.similarity==null) ? '—' : Number(r.similarity).toLocaleString(undefined,{maximumFractionDigits:3});
-        const img = r.image_url || '';
-        const ts = Number(r.timestamp)||0;
-
-        const labelHtml = (r.labels||[]).slice(0,3).map(l=>`<span class="label-tag">${escapeHtml(String(l))}</span>`).join('');
-
-        const openLink = img ? `<a class="link" href="${img}" target="_blank" rel="noopener">Open image</a>` : '';
-
-        return `
-          <div class="result-card">
-            <div class="result-header">
-              <div class="result-score">score: ${simText}</div>
-              ${r.model_used ? `<div class="pill">Model: ${escapeHtml(r.model_used)}</div>` : ''}
-            </div>
-
-            ${img ? `<img loading="lazy" class="thumb" src="${img}" alt="frame thumbnail"/>` : ''}
-
-            <div class="result-video">🎬 ${escapeHtml(r.video_name || 'Unknown')}</div>
-            <div class="result-timestamp">⏰ ${formatTimestamp(ts)}</div>
-            ${r.frame_number ? `<div class="result-frame">🎞️ Frame #${Number(r.frame_number)}</div>` : ''}
-
-            ${r.title ? `<div class="result-title">"${escapeHtml(r.title)}"</div>` : ''}
-
-            ${labelHtml ? `<div class="result-labels">${labelHtml}</div>` : ''}
-
-            <div class="row">
-              ${openLink}
-              ${r.file_name ? `<span class="pill" title="${escapeHtml(r.file_name)}">🗂️ ${escapeHtml(r.file_name)}</span>` : ''}
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function showError(message){
-      resultsSection.style.display = 'block';
-      searchInfo.innerHTML = '';
-      resultsGrid.innerHTML = `
-        <div class="error">
-          <strong>❌ Error:</strong> ${escapeHtml(message)}
-        </div>`;
-    }
-
-    // Basic HTML escaping for injected strings
-    function escapeHtml(str){
-      return String(str)
-        .replace(/&/g,'&amp;')
-        .replace(/</g,'&lt;')
-        .replace(/>/g,'&gt;')
-        .replace(/"/g,'&quot;')
-        .replace(/'/g,'&#039;');
-    }
-  </script>
+        
+        const searchForm = document.getElementById('searchForm');
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const loadingDiv = document.getElementById('loadingDiv');
+        const resultsSection = document.getElementById('resultsSection');
+        const searchInfo = document.getElementById('searchInfo');
+        const resultsGrid = document.getElementById('resultsGrid');
+        
+        searchForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const query = searchInput.value.trim();
+            if (query) {
+                performSearch(query);
+            }
+        });
+        
+        function searchQuery(query) {
+            searchInput.value = query;
+            performSearch(query);
+        }
+        
+        async function performSearch(query) {
+            // Show loading
+            loadingDiv.style.display = 'block';
+            resultsSection.style.display = 'none';
+            searchBtn.disabled = true;
+            searchBtn.textContent = '🔄 Searching...';
+            
+            try {
+                const selectedModel = document.getElementById('modelSelect').value;
+                
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        top_k: 12,
+                        model: selectedModel
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Hide loading
+                loadingDiv.style.display = 'none';
+                searchBtn.disabled = false;
+                searchBtn.textContent = '🔍 Search';
+                
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+                
+                displayResults(data);
+                
+            } catch (error) {
+                loadingDiv.style.display = 'none';
+                searchBtn.disabled = false;
+                searchBtn.textContent = '🔍 Search';
+                showError('Search failed: ' + error.message);
+            }
+        }
+        
+        function displayResults(data) {
+            resultsSection.style.display = 'block';
+            
+            // Search info
+            const analysis = data.analysis || {};
+            const selectedModel = document.getElementById('modelSelect').value;
+            const modelNames = {
+                'clip_vit_base': 'CLIP ViT Base',
+                'clip_vit_large': 'CLIP ViT Large', 
+                'chinese_clip': 'Chinese CLIP',
+                'sentence_transformers': 'Sentence Transformers'
+            };
+            
+            searchInfo.innerHTML = `
+                <h3>🔍 Search Results for "${data.query}"</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">🤖 AI Model</div>
+                        <div class="info-value">${modelNames[selectedModel] || data.model || selectedModel}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">⏱️ Search Time</div>
+                        <div class="info-value">${(data.search_time_ms || 0).toFixed(1)}ms</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">📊 Results</div>
+                        <div class="info-value">${data.total_results || data.total || 0}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">📦 Dataset</div>
+                        <div class="info-value">${data.dataset || 'Default'}</div>
+                    </div>
+                </div>
+            `;
+            
+            // Results
+            if (data.results.length === 0) {
+                resultsGrid.innerHTML = `
+                    <div class="no-results">
+                        <div class="no-results-icon">🔍</div>
+                        <h3>No results found</h3>
+                        <p>Try different keywords or check the suggestions above</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            resultsGrid.innerHTML = data.results.map(result => {
+                // Extract video name from frame_path if video_name is Unknown
+                let videoName = result.video_name || result.video || 'Unknown Video';
+                if (videoName === 'Unknown' || videoName === 'Unknown Video') {
+                    if (result.frame_path) {
+                        // Extract from path like "frames\good willhunting\frame_000285.jpg"
+                        const pathParts = result.frame_path.split(/[\\\/]/);
+                        if (pathParts.length >= 2) {
+                            videoName = pathParts[pathParts.length - 2]; // Get folder name
+                        }
+                    }
+                }
+                
+                return `
+                <div class="result-card">
+                    <div class="result-header">
+                        <div class="result-score">${((result.final_score || result.similarity_score || result.similarity || 0) * 100).toFixed(1)}%</div>
+                    </div>
+                    
+                    <div class="result-video">🎬 ${videoName}</div>
+                    <div class="result-timestamp">⏰ ${formatTimestamp(result.timestamp || 0)}</div>
+                    ${result.frame_number ? `<div class="result-frame">🎞️ Frame #${result.frame_number}</div>` : ''}
+                    <div class="result-frame">🗂️ File: <span style='color:#4facfe;font-weight:bold'>${result.file_name || ''}</span></div>
+                    ${result.title ? `<div class="result-title">"${result.title}"</div>` : ''}
+                    
+                    ${result.labels && result.labels.length > 0 ? `
+                        <div class="result-labels">
+                            ${result.labels.slice(0, 3).map(label => `<span class="label-tag">${label}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    <div class="result-scores">
+                        <div class="score-item">👁️ Visual: <span class="score-value">${((result.visual_score || result.similarity_score || result.similarity || 0) * 100).toFixed(1)}%</span></div>
+                        <div class="score-item">📝 Text: <span class="score-value">${((result.text_score || result.similarity_score || result.similarity || 0) * 100).toFixed(1)}%</span></div>
+                    </div>
+                </div>
+            `}).join('');
+        }
+        
+        function showError(message) {
+            resultsSection.style.display = 'block';
+            searchInfo.innerHTML = '';
+            resultsGrid.innerHTML = `
+                <div class="error">
+                    <strong>❌ Error:</strong> ${message}
+                </div>
+            `;
+        }
+        
+        // Auto-focus search input
+        searchInput.focus();
+    </script>
 </body>
 </html>
