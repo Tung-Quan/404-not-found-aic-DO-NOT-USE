@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎯 AI Video Search - BLIP-2 Engine</title>
+  <style>
+    :root {
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --brand: #111827;
+      --gradient-start: #667eea;
+      --gradient-end: #764ba2;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    @keyframes gradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200px 0; }
+      100% { background-position: calc(200px + 100%) 0; }
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      background-size: 400% 400%;
+      animation: gradient 15s ease infinite;
+      color: var(--ink);
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #1f2937, #4f46e5, #7c3aed);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-align: center;
+      animation: fadeInUp 1s ease-out;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 32px;
+      animation: fadeInUp 1s ease-out 0.2s both;
+      line-height: 1.6;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .muted {
+      color: var(--muted)
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      padding: 24px;
+      margin: 20px 0;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      animation: fadeInUp 0.8s ease-out;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      transition: left 0.5s;
+    }
+
+    .card:hover::before {
+      left: 100%;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .card h3 {
+      color: var(--brand);
+      margin-bottom: 16px;
+      font-size: 20px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card h3::before {
+      content: '✨';
+      font-size: 18px;
+    }
+
+    .row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      margin-bottom: 16px;
+    }
+
+    label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #374151;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="file"],
+    select {
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      min-width: 220px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input[type="file"]:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--gradient-start);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      transform: translateY(-1px);
+    }
+
+    button {
+      background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 20px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    button:hover::before {
+      left: 100%;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.secondary {
+      background: linear-gradient(135deg, #6b7280, #9ca3af);
+    }
+
+    button.secondary:hover {
+      box-shadow: 0 8px 25px rgba(107, 114, 128, 0.3);
+    }
+
+    button.success {
+      background: linear-gradient(135deg, var(--success), #34d399);
+    }
+
+    button.warning {
+      background: linear-gradient(135deg, var(--warning), #fbbf24);
+    }
+
+    button.error {
+      background: linear-gradient(135deg, var(--error), #f87171);
+    }
+
+    .result {
+      padding: 12px 0;
+      border-bottom: 1px dashed var(--line);
+      transition: all 0.3s ease;
+      border-radius: 8px;
+      margin: 4px 0;
+    }
+
+    .result:hover {
+      background: rgba(102, 126, 234, 0.05);
+      padding: 12px 16px;
+      border-color: var(--gradient-start);
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+      margin-right: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+
+    .tag:hover {
+      background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+      color: white;
+      transform: translateY(-1px);
+    }
+
+    .small {
+      font-size: 12px
+    }
+
+    .bar {
+      height: 12px;
+      background: rgba(229, 231, 235, 0.8);
+      border-radius: 20px;
+      overflow: hidden;
+      position: relative;
+      margin: 8px 0;
+    }
+
+    .bar>div {
+      height: 12px;
+      background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
+      width: 0%;
+      transition: width 0.5s ease;
+      position: relative;
+    }
+
+    .bar>div::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      background-image: linear-gradient(
+        -45deg,
+        rgba(255, 255, 255, .2) 25%,
+        transparent 25%,
+        transparent 50%,
+        rgba(255, 255, 255, .2) 50%,
+        rgba(255, 255, 255, .2) 75%,
+        transparent 75%,
+        transparent
+      );
+      background-size: 50px 50px;
+      animation: shimmer 2s linear infinite;
+    }
+
+    /* Grid ảnh */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .card2 {
+      border: 1px solid rgba(229, 231, 235, 0.8);
+      border-radius: 16px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    .card2:hover {
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+      border-color: var(--gradient-start);
+    }
+
+    .thumb {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+      transition: all 0.3s ease;
+    }
+
+    .thumb:hover {
+      filter: brightness(1.1) contrast(1.1);
+    }
+
+    .pad {
+      padding: 12px
+    }
+
+    .line {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .tools {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    /* Loading spinner styles */
+    .loading {
+      opacity: 0.7;
+      cursor: not-allowed !important;
+      position: relative;
+    }
+
+    .loading::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 16px;
+      height: 16px;
+      margin: -8px 0 0 -8px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top: 2px solid #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      z-index: 1;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .loading .button-text {
+      opacity: 0.5;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>🔎 BLIP-2 + OCR + OBJECTS Retrieval</h1>
+  <p class="muted">Index frames → tìm <b>video, frame</b> theo <b>KIS / Q&A / TRAKE</b>. Build async, theo dõi <b>%
+      Embedded</b>, xem ảnh Top-K, tick chọn & xuất CSV chuẩn BTC.</p>
+
+  <div class="card">
+    <h3>1) Khởi tạo & Xây chỉ mục</h3>
+    <div class="row">
+      <div>
+        <label>Frames root</label>
+        <input id="framesRoot" type="text" placeholder="/path/to/frames" />
+      </div>
+      <div>
+        <label>Index dir</label>
+        <input id="indexDir" type="text" value="index_blip2_ocr" />
+      </div>
+      <div>
+        <label>BLIP-2 Model</label>
+        <input id="blip2" type="text" value="Salesforce/blip2-flan-t5-xl" />
+      </div>
+      <div>
+        <label>Text Embed Model</label>
+        <input id="textModel" type="text" value="intfloat/multilingual-e5-base" />
+      </div>
+      <div>
+        <label>Objects root</label>
+        <input id="objectsRoot" type="text" value="objects" />
+      </div>
+      <div>
+        <label>Use objects</label>
+        <select id="useObjects">
+          <option value="true" selected>True</option>
+          <option value="false">False</option>
+        </select>
+      </div>
+      <div>
+        <label>Object topK</label>
+        <input id="objectTopK" type="number" value="10" />
+      </div>
+      <div>
+        <label>Object weight</label>
+        <input id="objectWeight" type="number" step="0.1" value="1.3" />
+      </div>
+      <div>
+        <label>Batch size (build)</label>
+        <input id="batchSize" type="number" value="32" />
+      </div>
+      <div>
+        <label>Save embeddings.npy (rất lớn)</label>
+        <select id="saveEmb">
+          <option value="false" selected>False</option>
+          <option value="true">True</option>
+        </select>
+      </div>
+      <!-- Optional: load index từ file đã embed (nếu bạn đã bật backend hỗ trợ) -->
+      <div>
+        <label>FAISS path (tuỳ chọn)</label>
+        <input id="faissPath" type="text" placeholder="E:\Disk_D\...\index\visual_index.faiss" />
+      </div>
+      <div>
+        <label>Metadata path (json/pkl)</label>
+        <input id="metaPath" type="text" placeholder="E:\Disk_D\...\index\metadata.pkl" />
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:10px">
+      <button onclick="initialize()"><span class="button-text">Initialize</span></button>
+      <button class="secondary" onclick="startBuild()"><span class="button-text">Start Build (Async)</span></button>
+      <button class="secondary" onclick="loadIndex()"><span class="button-text">Load Index</span></button>
+      <button class="secondary" onclick="cancelBuild()"><span class="button-text">Cancel</span></button>
+    </div>
+
+    <div id="initStatus" class="muted" style="margin-top:8px;"></div>
+
+    <!-- Progress: EMBEDDED % (đúng số frame đã add vào FAISS) -->
+    <div style="margin-top:8px">
+      <div class="bar">
+        <div id="embedBar"></div>
+      </div>
+      <div class="muted small" id="embedText">Embedded: 0% (0/0)</div>
+      <div class="muted small" id="procText">Processed: 0% (0/0)</div>
+      <div class="muted small" id="curFile"></div>
+      <div class="muted small" id="eta"></div>
+      <div class="muted small" id="err"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>2) Truy vấn nhanh</h3>
+    <div class="row">
+      <div>
+        <label>Loại</label>
+        <select id="task">
+          <option value="kis">KIS</option>
+          <option value="qa">Q&A</option>
+          <option value="trake">TRAKE</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <label>Nội dung truy vấn</label>
+        <input id="query" type="text" placeholder="vd: người đàn ông mặc áo đỏ cầm điện thoại" />
+      </div>
+      <div>
+        <label>TopK</label>
+        <input id="topk" type="number" value="10" />
+      </div>
+      <!-- NEW: tên query để đặt tên CSV -->
+      <div>
+        <label>Tên Query (CSV, không đuôi)</label>
+        <input id="manualQueryName" type="text" placeholder="query-1-kis" />
+      </div>
+      <button onclick="search()"><span class="button-text">Search</span></button>
+    </div>
+
+    <!-- NEW: lưới ảnh + tick chọn -->
+    <div class="tools">
+      <button class="secondary" onclick="pickAll(true)"><span class="button-text">Chọn tất cả</span></button>
+      <button class="secondary" onclick="pickAll(false)"><span class="button-text">Bỏ chọn</span></button>
+      <select id="exportMode">
+        <option value="kis">Xuất CSV (KIS)</option>
+        <option value="trake">Xuất CSV (TRAKE)</option>
+      </select>
+      <button onclick="exportPicked()"><span class="button-text">Xuất CSV từ lựa chọn</span></button>
+    </div>
+
+    <div id="grid" class="grid"></div>
+
+    <!-- text list (giữ lại nếu cần xem chi tiết) -->
+    <div id="results" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="card">
+    <h3>3) Xuất CSV theo chuẩn BTC (từ file .txt danh sách queries)</h3>
+    <div class="row">
+      <div>
+        <label>Loại truy vấn</label>
+        <select id="csvTask">
+          <option value="kis">KIS</option>
+          <option value="qa">Q&A</option>
+          <option value="trake">TRAKE</option>
+        </select>
+      </div>
+      <div>
+        <label>Upload .txt (mỗi dòng 1 truy vấn)</label>
+        <input id="fileInput" type="file" accept=".txt" />
+      </div>
+      <div>
+        <label>Tên file CSV (không đuôi)</label>
+        <input id="csvName" type="text" placeholder="query-1-kis" />
+      </div>
+      <button onclick="exportCSV()"><span class="button-text">Tạo & tải CSV</span></button>
+    </div>
+    <p class="muted small">CSV UTF-8, không header. Q&A sẽ tự quote khi có dấu phẩy/ngoặc kép/xuống dòng.</p>
+  </div>
+
+  <script>
+    // Nếu bạn host UI ở cổng khác: đổi API_BASE = "http://localhost:8000"
+    const API_BASE = "";
+
+    const api = (path, opt = {}) => fetch(API_BASE + path, opt).then(r => {
+      if ((API_BASE + path).includes('/api/export_csv')) return r.blob();
+      return r.json();
+    });
+
+    // Utility functions for loading state and alerts
+    function showAlert(message) {
+      alert(message);
+    }
+
+    function setButtonLoading(buttonElement, loading = true) {
+      if (loading) {
+        buttonElement.classList.add('loading');
+        buttonElement.disabled = true;
+        buttonElement.dataset.originalText = buttonElement.textContent;
+        buttonElement.innerHTML = `<span class="button-text">${buttonElement.dataset.originalText}</span>`;
+      } else {
+        buttonElement.classList.remove('loading');
+        buttonElement.disabled = false;
+        buttonElement.textContent = buttonElement.dataset.originalText || buttonElement.textContent;
+      }
+    }
+
+    function getInitBody() {
+      return {
+        frames_root: document.getElementById('framesRoot').value,
+        index_dir: document.getElementById('indexDir').value,
+        blip2_model: document.getElementById('blip2').value,
+        text_embed_model: document.getElementById('textModel').value,
+        objects_root: document.getElementById('objectsRoot').value || "objects",
+        use_objects: document.getElementById('useObjects').value === "true",
+        object_topk: parseInt(document.getElementById('objectTopK').value || "10", 10),
+        object_weight: parseFloat(document.getElementById('objectWeight').value || "1.3"),
+        batch_size: parseInt(document.getElementById('batchSize').value || "32", 10),
+        save_embeddings_npy: document.getElementById('saveEmb').value === "true"
+      }
+    }
+
+    async function initialize() {
+      const button = event.target;
+      showAlert('Đang khởi tạo hệ thống...');
+      setButtonLoading(button, true);
+      
+      try {
+        const res = await api('/api/initialize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(getInitBody())
+        });
+        document.getElementById('initStatus').textContent = JSON.stringify(res);
+        showAlert('Khởi tạo thành công!');
+      } catch (error) {
+        showAlert('Lỗi khởi tạo: ' + error.message);
+      } finally {
+        setButtonLoading(button, false);
+      }
+    }
+
+    async function startBuild() {
+      const button = event.target;
+      showAlert('Đang bắt đầu xây dựng chỉ mục...');
+      setButtonLoading(button, true);
+      
+      try {
+        const res = await api('/api/build_index', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(getInitBody())
+        });
+        document.getElementById('initStatus').textContent = "Build: " + JSON.stringify(res);
+        if (!poller) poller = setInterval(refreshStatus, 1000);
+        showAlert('Bắt đầu xây dựng chỉ mục thành công!');
+      } catch (error) {
+        showAlert('Lỗi xây dựng chỉ mục: ' + error.message);
+      } finally {
+        setButtonLoading(button, false);
+      }
+    }
+
+    async function cancelBuild() {
+      const button = event.target;
+      showAlert('Đang hủy quá trình xây dựng...');
+      setButtonLoading(button, true);
+      
+      try {
+        const res = await api('/api/cancel', { method: 'POST' });
+        document.getElementById('initStatus').textContent = "Cancel: " + JSON.stringify(res);
+        showAlert('Đã hủy quá trình xây dựng!');
+      } catch (error) {
+        showAlert('Lỗi hủy: ' + error.message);
+      } finally {
+        setButtonLoading(button, false);
+      }
+    }
+
+    async function loadIndex() {
+      const button = event.target;
+      showAlert('Đang tải chỉ mục...');
+      setButtonLoading(button, true);
+      
+      try {
+        const fd = new FormData();
+        const idxDir = document.getElementById('indexDir').value;
+        const faissPath = document.getElementById('faissPath')?.value || "";
+        const metaPath = document.getElementById('metaPath')?.value || "";
+
+        if (faissPath) {
+          fd.append('faiss_path', faissPath);
+          if (metaPath) fd.append('metadata_path', metaPath);
+        } else {
+          fd.append('index_dir', idxDir);
+        }
+
+        const res = await api('/api/load_index', { method: 'POST', body: fd });
+        document.getElementById('initStatus').textContent = "Loaded: " + JSON.stringify(res);
+        showAlert('Tải chỉ mục thành công!');
+      } catch (error) {
+        showAlert('Lỗi tải chỉ mục: ' + error.message);
+      } finally {
+        setButtonLoading(button, false);
+      }
+    }
+
+    // Lưu kết quả truy vấn gần nhất để export
+    let lastResults = [];
+
+    async function search() {
+      const button = event.target;
+      const query = document.getElementById('query').value;
+      if (!query.trim()) {
+        showAlert('Vui lòng nhập nội dung truy vấn!');
+        return;
+      }
+      
+      showAlert('Đang tìm kiếm: ' + query);
+      setButtonLoading(button, true);
+      
+      try {
+        const task = document.getElementById('task').value;
+        const q = document.getElementById('query').value;
+        const topk = parseInt(document.getElementById('topk').value || '10', 10);
+        const res = await api(`/api/${task}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: q, topk })
+        });
+
+        const grid = document.getElementById('grid');
+        const el = document.getElementById('results');
+        grid.innerHTML = ''; el.innerHTML = ''; lastResults = Array.isArray(res) ? res : [];
+
+        // Hiển thị lưới ảnh cho KIS/TR
+        if (Array.isArray(res)) {
+          lastResults = res;
+          res.forEach((r, idx) => {
+            const imgUrl = API_BASE + '/api/image?path=' + encodeURIComponent(r.path);
+            grid.innerHTML += `
+              <div class="card2">
+                <img class="thumb" src="${imgUrl}" alt="${r.video}#${r.frame}" onerror="this.style.display='none'">
+                <div class="pad">
+                  <div class="line"><b>${r.video}</b> — frame ${r.frame}</div>
+                  <div class="small muted line">score ${(r.score ?? '').toString().slice(0, 6)}</div>
+                  <div class="line small muted">${(r.objects && r.objects.length) ? ('OBJ: ' + r.objects.slice(0, 6).join(', ')) : ''}</div>
+                  <label class="small"><input type="checkbox" class="pick" data-video="${r.video}" data-frame="${r.frame}"> Chọn</label>
+                </div>
+              </div>`;
+          });
+        }
+
+        // Danh sách chữ (tham khảo)
+        if (Array.isArray(res)) {
+          res.forEach(r => {
+            el.innerHTML += `<div class="result">
+              <span class="tag">${r.video}</span>
+              <span class="tag">frame ${r.frame}</span>
+              <span class="muted">${(r.score ?? '').toString().slice(0, 5)}</span>
+              <div class="muted small">
+                ${r.caption ?? ''}${r.ocr ? (' | OCR: ' + r.ocr) : ''}${(r.objects && r.objects.length) ? (' | OBJ: ' + r.objects.slice(0, 8).join(', ')) : ''}
+              </div>
+            </div>`;
+          });
+        } else if (task === 'qa') {
+          el.innerHTML = `<div class="result"><b>${res.video}</b>, frame ${res.frame} → <i>Answer:</i> ${res.answer ?? ''}</div>`;
+        } else if (task === 'trake') {
+          el.innerHTML = `<div class="result"><b>${res.video}</b> → frames: ${res.frames?.join(', ') ?? ''}</div>`;
+        } else {
+          el.textContent = JSON.stringify(res);
+        }
+        
+        showAlert(`Tìm kiếm hoàn thành! Tìm thấy ${Array.isArray(res) ? res.length : 1} kết quả.`);
+      } catch (error) {
+        showAlert('Lỗi tìm kiếm: ' + error.message);
+      } finally {
+        setButtonLoading(button, false);
+      }
+    }
+
+    function pickAll(flag) {
+      showAlert(flag ? 'Đang chọn tất cả...' : 'Đang bỏ chọn tất cả...');
+      
+      setTimeout(() => {
+        document.querySelectorAll('.pick').forEach(cb => cb.checked = !!flag);
+        showAlert(flag ? 'Đã chọn tất cả!' : 'Đã bỏ chọn tất cả!');
+      }, 100);
+    }
+
+    function exportPicked() {
+      showAlert('Đang chuẩn bị xuất CSV...');
+      
+      const picks = Array.from(document.querySelectorAll('.pick:checked')).map(cb => ({
+        video: cb.dataset.video,
+        frame: parseInt(cb.dataset.frame, 10)
+      }));
+      const mode = document.getElementById('exportMode').value; // kis | trake
+      const nameBase = (document.getElementById('manualQueryName').value || (mode === 'kis' ? 'manual-kis' : 'manual-trake')).trim();
+
+      if (!picks.length) { 
+        showAlert('Chưa chọn frame nào!'); 
+        return; 
+      }
+
+      try {
+        let csv = '';
+        if (mode === 'kis') {
+          // Mỗi lựa chọn = 1 dòng: <video>,<frame>
+          csv = picks.map(p => `${p.video},${p.frame}`).join('\n');
+        } else { // trake
+          // 1 dòng duy nhất: <video>,<f1>,<f2>,...
+          const videoSet = new Set(picks.map(p => p.video));
+          if (videoSet.size !== 1) {
+            showAlert('TRAKE yêu cầu tất cả frame cùng 1 video!');
+            return;
+          }
+          const video = picks[0].video;
+          const frames = picks.map(p => p.frame).sort((a, b) => a - b);
+          csv = `${video},${frames.join(',')}`;
+        }
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nameBase + '.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        showAlert(`Đã xuất CSV thành công: ${nameBase}.csv`);
+      } catch (error) {
+        showAlert('Lỗi xuất CSV: ' + error.message);
+      }
+    }
+
+    // Progress poller
+    let poller = null;
+    async function refreshStatus() {
+      const st = await api('/api/status');
+
+      // EMBEDDED %
+      const embedBar = document.getElementById('embedBar');
+      const embedText = document.getElementById('embedText');
+      const total = st.total || 0;
+      const embedded = st.embedded || 0;
+      const pctEmb = (st.pct_embedded !== undefined && st.pct_embedded !== null)
+        ? Number(st.pct_embedded)
+        : (total > 0 ? (embedded * 100 / total) : 0);
+
+      embedBar.style.width = pctEmb.toFixed(2) + '%';
+      embedText.textContent = `Embedded: ${pctEmb.toFixed(2)}% (${embedded}/${total})`;
+
+      // PROCESSED %
+      const procText = document.getElementById('procText');
+      const processed = st.processed || 0;
+      const pctProc = (st.pct !== undefined && st.pct !== null)
+        ? Number(st.pct)
+        : (total > 0 ? (processed * 100 / total) : 0);
+      procText.textContent = `Processed: ${pctProc.toFixed(2)}% (${processed}/${total})`;
+
+      // File hiện tại, ETA, Lỗi
+      document.getElementById('curFile').textContent = st.current_path ? `Đang xử lý: ${st.current_path}` : '';
+      document.getElementById('eta').textContent = (st.eta_sec !== undefined && st.eta_sec !== null)
+        ? `ETA ~ ${Math.round(st.eta_sec)}s` : '';
+      document.getElementById('err').textContent = st.error ? `Lỗi: ${st.error}` : '';
+
+      if (st.engine_ready === false) { clearInterval(poller); poller = null; }
+      if (st.building === false && poller) { clearInterval(poller); poller = null; }
+    }
+
+    // Batch export (từ file .txt queries)
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const base = f.name.replace(/\.[^/.]+$/, '');
+      const el = document.getElementById('csvName');
+      if (!el.value) el.value = base;
+      showAlert(`Đã chọn file: ${f.name}`);
+    });
+
+    async function exportCSV() {
+      const button = event.target;
+      const f = document.getElementById('fileInput').files[0];
+      if (!f) { 
+        showAlert("Vui lòng chọn file .txt trước!"); 
+        return; 
+      }
+
+      const nameBase = (document.getElementById('csvName').value || f.name.replace(/\.[^/.]+$/, '')).trim();
+      if (!nameBase) { 
+        showAlert("Vui lòng nhập tên file CSV (không đuôi)!"); 
+        return; 
+      }
+
+      showAlert(`Đang xử lý file ${f.name} và tạo CSV...`);
+      setButtonLoading(button, true);
+
+      try {
+        const fd = new FormData();
+        const task = document.getElementById('csvTask').value;
+
+        fd.append('task', task);
+        fd.append('query_file', f);
+        fd.append('output_name', nameBase);
+
+        const blob = await api('/api/export_csv', { method: 'POST', body: fd });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nameBase + '.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        showAlert(`Đã tạo và tải CSV thành công: ${nameBase}.csv`);
+      } catch (error) {
+        showAlert('Lỗi tạo CSV: ' + error.message);
+      } finally {
+        setButtonLoading(button, false);
+      }
+    }
+  </script>
+</body>
+
+</html>
