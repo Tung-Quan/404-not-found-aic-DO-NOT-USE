@@ -4,21 +4,21 @@ import torch
 from pathlib import Path
 from PIL import Image
 from sys import stdout
-from transformers import AutoModel, AutoProcessor
+from transformers import AutoProcessor, AutoModel
 
 # ------------------ Config ------------------
-MODEL_ID   = os.environ.get("ZH_CLIP_MODEL_ID", "OFA-Sys/chinese-clip-vit-base-patch16")
+MODEL_ID   = os.environ.get("SIGLIP_MODEL_ID", "google/siglip-base-patch16-256-multilingual")
 DEVICE     = "cuda" if torch.cuda.is_available() else "cpu"
 DTYPE      = torch.float16 if DEVICE == "cuda" else torch.float32
-BATCH      = int(os.environ.get("ZH_CLIP_BATCH", "64"))
+BATCH      = int(os.environ.get("SIGLIP_BATCH", "64"))
 FRAMES_DIR = Path(os.environ.get("FRAMES_DIR", "frames"))
 OUT_DIR    = Path(os.environ.get("EMB_DIR", "index/embeddings"))
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-EMB_PATH   = OUT_DIR / "frames_chinese_clip.f16.mmap"
-MANIFEST   = OUT_DIR / "frames_chinese_clip.manifest.json"
+EMB_PATH   = OUT_DIR / "frames_siglip.f16.mmap"
+MANIFEST   = OUT_DIR / "frames_siglip.manifest.json"
 
-print("🇨🇳 CHINESE-CLIP ENCODING")
+print("🌐 SIGLIP ENCODING - MULTILINGUAL")
 print("=" * 60)
 print(f"🎯 Model: {MODEL_ID}")
 print(f"🖥️  Device: {DEVICE}")
@@ -38,12 +38,9 @@ def norm_path(p: Path) -> str:
     except Exception:
         return str(p).replace("\\", "/")
 
-def load_chinese_clip():
-    """
-    Prefer safetensors. If repo lacks safetensors, user must upgrade torch>=2.6
-    or use a model that provides safetensors.
-    """
+def load_siglip():
     try:
+        processor = AutoProcessor.from_pretrained(MODEL_ID, use_fast=False)
         model = AutoModel.from_pretrained(
             MODEL_ID,
             torch_dtype=DTYPE,
@@ -51,28 +48,22 @@ def load_chinese_clip():
             use_safetensors=True,
             local_files_only=False,
         ).to(DEVICE).eval()
-        processor = AutoProcessor.from_pretrained(MODEL_ID, use_fast=False)
         return model, processor
     except Exception as e:
         raise RuntimeError(
-            f"{MODEL_ID} lacks safetensors or was blocked by safety checks. "
-            f"Upgrade torch>=2.6 or switch to a safetensors variant. Root error: {e}"
+            f"Cannot load {MODEL_ID} with safetensors. "
+            f"Upgrade torch>=2.6 or choose a safetensors-available model. Root error: {e}"
         )
 
 def infer_dim(model, processor):
     dim = int(getattr(getattr(model, "config", object()), "projection_dim", 0) or 0)
     if dim > 0:
         return dim
-    tmp = Image.new("RGB", (224, 224), color=(128, 128, 128))
+    tmp = Image.new("RGB", (256, 256), color=(128, 128, 128))
     with torch.inference_mode():
         ins = processor(images=[tmp], return_tensors="pt")
         ins = {k: v.to(DEVICE) for k, v in ins.items()}
-        if hasattr(model, "get_image_features"):
-            out = model.get_image_features(**ins)
-        else:
-            # fallback: vision forward + mean-pool
-            outputs = model.vision_model(**ins)
-            out = outputs.last_hidden_state.mean(dim=1)
+        out = model.get_image_features(**ins)
         dim = int(out.shape[-1])
     return dim
 
@@ -91,9 +82,9 @@ def save_manifest(frame_paths, dim):
 
 # ------------------ Main ------------------
 def main():
-    print("🔄 Loading Chinese-CLIP (safetensors preferred, use_fast=False)...")
-    model, processor = load_chinese_clip()
-    print("✅ Chinese-CLIP model loaded.\n")
+    print("🔄 Loading SigLIP (safetensors preferred, use_fast=False)...")
+    model, processor = load_siglip()
+    print("✅ SigLIP model loaded.\n")
 
     files = [str(p) for p in iter_images(FRAMES_DIR)]
     files.sort()
@@ -132,13 +123,9 @@ def main():
         with torch.inference_mode():
             ins = processor(images=images, return_tensors="pt")
             ins = {k: v.to(DEVICE) for k, v in ins.items()}
-            if hasattr(model, "get_image_features"):
-                feats = model.get_image_features(**ins)
-            else:
-                outputs = model.vision_model(**ins)
-                feats = outputs.last_hidden_state.mean(dim=1)
-            feats = torch.nn.functional.normalize(feats, p=2, dim=1)
-            arr = feats.detach().to(torch.float16).cpu().numpy()
+            out = model.get_image_features(**ins)
+            out = torch.nn.functional.normalize(out, p=2, dim=1)
+            arr = out.detach().to(torch.float16).cpu().numpy()
         if arr.shape != (e - s, DIM):
             raise RuntimeError(f"Shape mismatch: arr={arr.shape}, slice={(e - s, DIM)}")
         mem[s:e] = arr
@@ -156,7 +143,7 @@ def main():
                 print(f"Processed {e}/{N} ({e/N:.1%})", flush=True)
                 last_log = now
 
-    print(f"🔄 Encoding {N:,} frames with Chinese-CLIP...\n")
+    print(f"🔄 Encoding {N:,} frames with SigLIP...\n")
     for i, fp in enumerate(files):
         img = Image.open(fp).convert("RGB")
         images.append(img)
@@ -170,7 +157,7 @@ def main():
 
     save_manifest(files, DIM)
     size_mb = os.path.getsize(EMB_PATH) / (1024 * 1024)
-    print("\n🎉 DONE! Chinese-CLIP embeddings saved.")
+    print("\n🎉 DONE! SigLIP embeddings saved.")
     print(f"📁 {EMB_PATH}  |  shape=({N},{DIM}) float16  |  ~{size_mb:.1f} MB")
     print(f"📝 Manifest: {MANIFEST}")
 

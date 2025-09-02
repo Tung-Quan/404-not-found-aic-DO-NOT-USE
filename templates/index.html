@@ -186,8 +186,9 @@
       const fileName = r.file_name || (r.frame_path ? r.frame_path.split(/[\\/]/).pop() : '');
       const frameNum = r.frame_number || r.index || null;
 
-      // similarity fields may vary
-      const sim = (typeof r.final_score === 'number') ? r.final_score
+      // similarity fields may vary → ưu tiên reranked_score
+      const sim = (typeof r.reranked_score === 'number') ? r.reranked_score
+                : (typeof r.final_score === 'number') ? r.final_score
                 : (typeof r.similarity_score === 'number') ? r.similarity_score
                 : (typeof r.similarity === 'number') ? r.similarity
                 : null;
@@ -216,9 +217,10 @@
         similarity: sim,
         model_used: r.model_used || '',
         file_name: fileName,
-        frame_path: r.frame_path || ''
+        frame_path: r.frame_path || '',
+        detected_color: r.detected_color || null // thêm nếu backend trả về
       };
-    }
+}
 
     // ===== Elements =====
     const searchForm = document.getElementById('searchForm');

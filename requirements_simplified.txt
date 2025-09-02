@@ -1,0 +1,41 @@
+# Simplified AI Search System Requirements
+# Hệ thống đơn giản hóa chỉ sử dụng 1 mô hình + OCR
+# Compatible versions to avoid conflicts
+
+# Core ML Libraries (Compatible versions)
+torch>=2.0.0,<2.3.0
+torchvision>=0.15.0,<0.18.0
+transformers>=4.30.0,<4.45.0
+numpy>=1.21.0,<1.27.0
+
+# Optional: CLIP models
+ftfy>=6.0.0
+regex>=2023.0.0
+
+# Computer Vision & OCR
+opencv-python>=4.5.0,<4.10.0
+Pillow>=9.0.0,<11.0.0
+
+# Vector Search  
+faiss-cpu>=1.7.0,<1.9.0
+
+# Web Framework
+fastapi>=0.95.0,<0.115.0
+uvicorn>=0.20.0,<0.25.0
+jinja2>=3.0.0,<3.2.0
+python-multipart>=0.0.5,<0.1.0
+
+# Utilities
+requests>=2.25.0,<3.0.0
+aiofiles>=0.8.0,<24.0.0
+python-dotenv>=0.19.0,<2.0.0
+pydantic>=2.0.0,<3.0.0
+
+# Optional OCR (install separately if needed)
+# vietocr>=0.3.12
+# easyocr>=1.7.0
+
+# Optional GPU support (install separately if needed)
+# torch>=2.0.0+cu118 -f https://download.pytorch.org/whl/torch_stable.html
+# torchvision>=0.15.0+cu118 -f https://download.pytorch.org/whl/torch_stable.html
+# faiss-gpu>=1.7.4

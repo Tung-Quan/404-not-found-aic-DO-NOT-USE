@@ -1,0 +1,33 @@
+# Core Dependencies - Install in order
+# Cài đặt theo thứ tự để tránh conflicts
+
+# Step 1: Core ML stack
+torch>=2.0.0,<2.3.0
+torchvision>=0.15.0,<0.18.0
+numpy>=1.21.0,<1.27.0
+
+# Step 2: Basic utilities
+Pillow>=9.0.0,<11.0.0
+requests>=2.25.0,<3.0.0
+
+# Step 3: Computer vision
+opencv-python>=4.5.0,<4.10.0
+
+# Step 4: NLP and transformers
+transformers>=4.30.0,<4.45.0
+ftfy>=6.0.0
+regex>=2023.0.0
+
+# Step 5: Vector search
+faiss-cpu>=1.7.0,<1.9.0
+
+# Step 6: Web framework
+fastapi>=0.95.0,<0.115.0
+uvicorn>=0.20.0,<0.25.0
+jinja2>=3.0.0,<3.2.0
+python-multipart>=0.0.5,<0.1.0
+pydantic>=2.0.0,<3.0.0
+
+# Step 7: Additional utilities
+aiofiles>=0.8.0,<24.0.0
+python-dotenv>=0.19.0,<2.0.0

@@ -2,7 +2,8 @@
 Enhanced AI Video Search Engine with Hybrid Model Support
 Supports both PyTorch and TensorFlow models with real-time switching
 """
-
+import cv2
+import numpy as np
 import json
 import os
 import time
@@ -763,9 +764,58 @@ class EnhancedAIVideoSearchEngine:
                             top_k: int = 5,
                             model_key: str = None,
                             use_faiss: bool = True) -> List[Dict[str, Any]]:
-        """Search for frames similar to text query với model choice"""
+        """Search for frames similar to text query, with optional color re-ranking."""
+
+        import cv2
+        import numpy as np
+        from pathlib import Path
+
+        def get_dominant_color(img, k=3):
+            """Return dominant color name from image (basic HSV rules)."""
+            try:
+                img = cv2.resize(img, (64, 64))
+                img = img.reshape((-1, 3))
+                img = np.float32(img)
+
+                # k-means clustering
+                _, labels, centers = cv2.kmeans(
+                    img, k, None,
+                    (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0),
+                    10, cv2.KMEANS_RANDOM_CENTERS
+                )
+                counts = np.bincount(labels.flatten())
+                dominant = centers[np.argmax(counts)].astype(int)
+
+                # Convert to HSV
+                hsv = cv2.cvtColor(np.uint8([[dominant]]), cv2.COLOR_BGR2HSV)[0][0]
+                h, s, v = hsv
+
+                if s < 40 and v > 200:
+                    return "white"
+                if s < 40 and v < 50:
+                    return "black"
+                if v < 80:
+                    return "dark"
+
+                if h < 15 or h > 160:
+                    return "red"
+                elif 15 <= h < 35:
+                    return "yellow"
+                elif 35 <= h < 85:
+                    return "green"
+                elif 85 <= h < 125:
+                    return "blue"
+                elif 125 <= h < 160:
+                    return "purple"
+                else:
+                    return "unknown"
+            except Exception:
+                return "unknown"
+
+        # =========================
+        # STEP 1: Choose model
+        # =========================
         if not model_key:
-            # Try vision-language model first, then text embedding
             model_key = (self.active_models.get("vision_language") or 
                         self.active_models.get("text_embedding"))
         
@@ -773,34 +823,33 @@ class EnhancedAIVideoSearchEngine:
             print(f"❌ No embeddings available for model: {model_key}")
             return []
         
-        # Encode query
+        # =========================
+        # STEP 2: Encode query
+        # =========================
         query_embedding = self.encode_text_with_model(query, model_key)
         if query_embedding is None:
             print(f"❌ Failed to encode query with {model_key}")
             return []
         
         start_time = time.time()
-        
+        results = []
+
+        # =========================
+        # STEP 3: Search (FAISS or numpy)
+        # =========================
         if use_faiss and model_key in self.faiss_indexes:
             q = query_embedding.reshape(1, -1).astype('float32')
-            faiss.normalize_L2(q)  # cosine with IndexFlatIP
+            faiss.normalize_L2(q)  # cosine similarity
             distances, indices = self.faiss_indexes[model_key].search(q, top_k)
 
-            results = []
             for sim, idx in zip(distances[0], indices[0]):
                 if 0 <= idx < len(self.frames_metadata):
                     frame_data = self.frames_metadata[idx].copy()
-                    similarity = float(sim)  # cosine ∈ [-1, 1]
-                    frame_data['similarity_score'] = similarity
-                    frame_data['score'] = similarity
+                    frame_data['similarity_score'] = float(sim)
+                    frame_data['score'] = float(sim)
                     frame_data['model_used'] = model_key
                     results.append(frame_data)
-
-
         else:
-            # Fallback to numpy similarity
-            # --- Fallback to numpy similarity ---
-            # Ensure metadata aligned to embeddings length
             emb_len = int(self.image_embeddings[model_key].shape[0])
             if len(self.frames_metadata) != emb_len:
                 if not self._attempt_align_to_embeddings(model_key, emb_len):
@@ -808,20 +857,58 @@ class EnhancedAIVideoSearchEngine:
             similarities = np.dot(self.image_embeddings[model_key], query_embedding)
             top_indices = np.argsort(similarities)[-top_k:][::-1]
             
-            results = []
             for idx in top_indices:
                 frame_data = self.frames_metadata[idx].copy()
                 similarity = float(similarities[idx])
                 frame_data['similarity_score'] = similarity
-                frame_data['score'] = similarity  # For API compatibility
+                frame_data['score'] = similarity
                 frame_data['model_used'] = model_key
                 results.append(frame_data)
-        
-        # Log performance
+
+        # =========================
+        # STEP 4: Optional Color Re-ranking
+        # =========================
+        color_keywords = ["red", "blue", "green", "yellow", "black", "white", "purple"]
+        query_lower = query.lower()
+        target_color = None
+        for c in color_keywords:
+            if c in query_lower:
+                target_color = c
+                break
+
+        if target_color and results:
+            reranked = []
+            for r in results:
+                try:
+                    frame_path = Path(r["frame_path"])
+                    if frame_path.exists():
+                        img = cv2.imread(str(frame_path))
+                        dominant = get_dominant_color(img)
+                    else:
+                        dominant = "unknown"
+
+                    score = r["similarity_score"]
+                    if dominant == target_color:
+                        score += 0.05  # Boost if color matches
+
+                    r["reranked_score"] = score
+                    r["detected_color"] = dominant
+                except Exception:
+                    r["reranked_score"] = r["similarity_score"]
+                    r["detected_color"] = "unknown"
+
+                reranked.append(r)
+
+            results = sorted(reranked, key=lambda x: x["reranked_score"], reverse=True)
+
+        # =========================
+        # STEP 5: Performance log
+        # =========================
         search_time = time.time() - start_time
         self._log_performance(model_key, "search", search_time)
-        
-        return results
+
+        return results[:top_k]
+
     
     def compare_models_performance(self, query: str, top_k: int = 3) -> Dict[str, Any]:
         """So sánh performance của các models khác nhau"""
@@ -995,6 +1082,47 @@ class EnhancedAIVideoSearchEngine:
                 self.batch_size = batch_size
         else:
             self.batch_size = batch_size
+
+
+def get_dominant_color(img, k=3):
+    """Trả về tên màu chính trong ảnh"""
+    # Resize để tăng tốc
+    img = cv2.resize(img, (64, 64))
+    img = img.reshape((-1, 3))
+    img = np.float32(img)
+
+    # K-means clustering
+    _, labels, centers = cv2.kmeans(
+        img, k, None,
+        (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0),
+        10, cv2.KMEANS_RANDOM_CENTERS
+    )
+    counts = np.bincount(labels.flatten())
+    dominant = centers[np.argmax(counts)].astype(int)
+
+    # Chuyển sang HSV để dễ phân loại
+    hsv = cv2.cvtColor(np.uint8([[dominant]]), cv2.COLOR_BGR2HSV)[0][0]
+    h, s, v = hsv
+
+    if s < 40 and v > 200:
+        return "white"
+    if s < 40 and v < 50:
+        return "black"
+    if v < 80:
+        return "dark"
+
+    if h < 15 or h > 160:
+        return "red"
+    elif 15 <= h < 35:
+        return "yellow"
+    elif 35 <= h < 85:
+        return "green"
+    elif 85 <= h < 125:
+        return "blue"
+    elif 125 <= h < 160:
+        return "purple"
+    else:
+        return "unknown"
 
 
 def demo_enhanced_search():

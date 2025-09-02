@@ -339,7 +339,12 @@ class EnhancedHybridModelManager:
         try:
             if config.model_type == ModelType.VISION_LANGUAGE:
                 # CLIP models
-                config.model = CLIPModel.from_pretrained(config.model_path)
+                config.model = CLIPModel.from_pretrained(
+                    config.model_path,
+                    use_safetensors=True,      # bắt buộc dùng .safetensors (không dùng torch.load)
+                    torch_dtype="auto",
+                    low_cpu_mem_usage=True
+                )
                 config.processor = CLIPProcessor.from_pretrained(config.model_path)
                 
                 # Move to device
@@ -615,7 +620,7 @@ class EnhancedHybridModelManager:
         """Initialize default models"""
         try:
             # Load default CLIP model
-            clip_key = "clip_vit_base_pytorch"
+            clip_key = "clip_vit_base"
             if clip_key in self.available_models:
                 success = self.load_model(clip_key)
                 if success:
