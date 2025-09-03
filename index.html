@@ -7,12 +7,12 @@
   <title>🎯 AI Video Search - BLIP-2 Engine</title>
   <style>
     :root {
-      --ink: #1f2937;
-      --muted: #6b7280;
-      --line: #e5e7eb;
-      --brand: #111827;
-      --gradient-start: #667eea;
-      --gradient-end: #764ba2;
+      --ink: #1e3a8a;
+      --muted: #3b82f6;
+      --line: #dbeafe;
+      --brand: #1e40af;
+      --gradient-start: #2563eb;
+      --gradient-end: #1d4ed8;
       --success: #10b981;
       --warning: #f59e0b;
       --error: #ef4444;
@@ -53,10 +53,10 @@
 
     body {
       font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #3b82f6 100%);
       background-size: 400% 400%;
       animation: gradient 15s ease infinite;
-      color: var(--ink);
+      color: rgba(255, 255, 255, 0.95);
       padding: 24px;
       min-height: 100vh;
     }
@@ -65,12 +65,10 @@
       font-size: 32px;
       font-weight: 800;
       margin-bottom: 16px;
-      background: linear-gradient(135deg, #1f2937, #4f46e5, #7c3aed);
-      background-clip: text;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      color: white;
       text-align: center;
       animation: fadeInUp 1s ease-out;
+      text-shadow: 0 4px 8px rgba(0,0,0,0.3);
     }
 
     .subtitle {
@@ -213,7 +211,7 @@
 
     button:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+      box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
     }
 
     button:active {
@@ -249,7 +247,7 @@
     }
 
     .result:hover {
-      background: rgba(102, 126, 234, 0.05);
+      background: rgba(37, 99, 235, 0.05);
       padding: 12px 16px;
       border-color: var(--gradient-start);
     }
@@ -470,7 +468,7 @@
       <button class="secondary" onclick="startBuild()"><span class="button-text">Start Build (Async)</span></button>
       <button class="secondary" onclick="loadIndex()"><span class="button-text">Load Index</span></button>
       <button class="secondary" onclick="cancelBuild()"><span class="button-text">Cancel</span></button>
-    </div>
+    </div>~
 
     <div id="initStatus" class="muted" style="margin-top:8px;"></div>
 
@@ -563,6 +561,15 @@
       if ((API_BASE + path).includes('/api/export_csv')) return r.blob();
       return r.json();
     });
+
+    // Utility function to format time from seconds to hh:mm:ss
+    function formatTimestamp(seconds) {
+      if (!seconds || seconds <= 0) return "0:00";
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = Math.floor(seconds % 60);
+      return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+    }
 
     // Utility functions for loading state and alerts
     function showAlert(message) {
@@ -839,7 +846,7 @@
       // File hiện tại, ETA, Lỗi
       document.getElementById('curFile').textContent = st.current_path ? `Đang xử lý: ${st.current_path}` : '';
       document.getElementById('eta').textContent = (st.eta_sec !== undefined && st.eta_sec !== null)
-        ? `ETA ~ ${Math.round(st.eta_sec)}s` : '';
+        ? `ETA ~ ${formatTimestamp(st.eta_sec)}` : '';
       document.getElementById('err').textContent = st.error ? `Lỗi: ${st.error}` : '';
 
       if (st.engine_ready === false) { clearInterval(poller); poller = null; }

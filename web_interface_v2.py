@@ -197,12 +197,64 @@ class Blip2OCREngine:
         self.processor = None
         self.blip2 = None
         if load_blip2:
-            self.processor = Blip2Processor.from_pretrained(blip2_model, token=hf_token)
-            self.blip2 = Blip2ForConditionalGeneration.from_pretrained(
-                blip2_model,
-                token=hf_token,
-                torch_dtype=(torch.float16 if (_HAS_TORCH and torch.cuda.is_available()) else torch.float32)
-            ).to(self.device).eval()
+            # self.processor = Blip2Processor.from_pretrained(blip2_model, token=hf_token)
+            # self.blip2 = Blip2ForConditionalGeneration.from_pretrained(
+            #     blip2_model,
+            #     token=hf_token,
+            #     torch_dtype=(torch.float16 if (_HAS_TORCH and torch.cuda.is_available()) else torch.float32)
+            # ).to(self.device).eval()
+            # Processor giữ nguyên (nhẹ, không tốn nhiều RAM)
+            self.processor = Blip2Processor.from_pretrained(blip2_model)
+
+            # ===== Robust loader cho BLIP-2, ưu tiên ít RAM =====
+            bnb_ok = False
+            try:
+                # Thử quantization nếu bitsandbytes sẵn có (tiết kiệm RAM đáng kể)
+                from transformers import BitsAndBytesConfig
+                bnb_conf = BitsAndBytesConfig(
+                    load_in_4bit=True,                      # thử 4-bit
+                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_compute_dtype=torch.float16 if self.device=="cuda" else torch.float32,
+                )
+                bnb_ok = True
+            except Exception:
+                bnb_ok = False
+
+            try:
+                if bnb_ok:
+                    # 4-bit quant + auto offload
+                    self.blip2 = Blip2ForConditionalGeneration.from_pretrained(
+                        blip2_model,
+                        quantization_config=bnb_conf,
+                        device_map="auto",           # tự chia GPU/CPU
+                        low_cpu_mem_usage=True,
+                    )
+                else:
+                    # Không có bitsandbytes: dùng auto-offload sang disk để giảm RAM
+                    offload_dir = os.path.join(self.index_dir, "_offload_blip2")
+                    os.makedirs(offload_dir, exist_ok=True)
+                    self.blip2 = Blip2ForConditionalGeneration.from_pretrained(
+                        blip2_model,
+                        device_map="auto",           # có GPU sẽ dùng, phần dư offload
+                        torch_dtype=(torch.float16 if self.device=="cuda" else torch.float32),
+                        low_cpu_mem_usage=True,      # nạp từng phần
+                        offload_folder=offload_dir,  # thư mục offload trên đĩa
+                    )
+            except OSError as e:
+                # Bắt lỗi Windows 1455 (paging file)
+                msg = str(e)
+                if ("1455" in msg) or ("paging file" in msg.lower()):
+                    raise RuntimeError(
+                        "Windows error 1455: Hết Virtual Memory khi load BLIP-2. "
+                        "Hãy tăng Pagefile (System Properties → Advanced → Performance → Settings → Advanced → "
+                        "Virtual memory → Change → bỏ tick Automatically → Custom size → Initial/Maximum ≥ 32768 MB), "
+                        "hoặc cài bitsandbytes để load 4-bit (pip install bitsandbytes), "
+                        "hoặc đổi sang offload_folder ổ đĩa còn nhiều dung lượng."
+                    )
+                else:
+                    raise
+            # ===== Hết phần robust loader =====
+
         
         self.log_every_n = int(os.getenv("LOG_EVERY_N", "100"))   # in mỗi 100 ảnh (mặc định)
         self.list_preview_n = int(os.getenv("LIST_PREVIEW_N", "20"))  # in trước 20 file đầu khi scan
@@ -265,7 +317,7 @@ class Blip2OCREngine:
         from PIL import Image
         image = Image.open(img_path).convert("RGB")
         inputs = self.processor(images=image, return_tensors="pt").to(self.device)
-
+        #Nếu vẫn nặng, giảm tiếp max_new_tokens xuống 16.
         gen_cfg = dict(
             max_new_tokens=25,   # ngắn gọn để nhanh
             num_beams=3,         # beam nhỏ cho tốc độ
