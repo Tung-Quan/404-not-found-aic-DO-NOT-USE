@@ -92,7 +92,16 @@ Trong `--index-dir` (mặc định `index_blip2_ocr/`):
 ---
 
 ## 4) Logging tiến độ
-
+Dùng:
+```powershell
+ set LOG_LEVEL=DEBUG (Windows)  
+ ```
+hay (linux)
+```bash
+export LOG_LEVEL=DEBUG 
+```
+để xem log chi tiết.
+```
 Ví dụ log trong quá trình chạy:
 
 ```
@@ -311,6 +320,25 @@ P(intent|query) = softmax(W·BERT(query) + b)
 - CRF layer cho sequence labeling consistency
 
 ---
+## object_weight là gì?
+
+Đây là trọng số điều chỉnh mức độ “ảnh hưởng” của nhãn đối tượng (objects) vào vector cuối cùng.
+
+Công thức: final = normalize( main_emb + object_weight * obj_emb ).
+
+Hiểu nhanh:
+
+Tăng object_weight ⇒ kết quả thiên về keywords từ detector (tên vật thể).
+
+Giảm object_weight ⇒ thiên về caption + OCR.
+
+0 ⇒ bỏ qua ảnh hưởng của objects.
+
+Mặc định trong code: 1.3. Thường nên thử trong [0.8 … 1.5]:
+
+Ảnh tài liệu nhiều chữ → đặt thấp (≈0.8–1.0).
+
+Ảnh cảnh vật/đồ vật → đặt cao (≈1.2–1.5).
 
 ## 🧪 Thuật toán Tìm kiếm
 
@@ -556,7 +584,17 @@ L_KD = αL_CE + (1-α)τ²KL(σ(z_s/τ), σ(z_t/τ))
 | Ours  | 45.2| 72.1| 82.3 | 58.7|
 
 ---
+### Dùng model nào thay thế (nhẹ hơn mà vẫn ổn)
 
+Các repo BLIP-2 hợp lệ (phổ biến):
+
+Salesforce/blip2-flan-t5-xl (bạn đang dùng – nặng)
+
+Salesforce/blip2-flan-t5-xxl (rất nặng)
+
+Salesforce/blip2-opt-2.7b ✅ nhẹ nhất trong họ BLIP-2, phù hợp để caption
+
+Salesforce/blip2-opt-6.7b (trung bình)
 ## 🔍 API Documentation
 
 ### Search Endpoints

@@ -137,3 +137,4 @@ data/
 *.csv
 map-keyframes/
 objects/
+index_blip2_ocr/

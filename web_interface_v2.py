@@ -8,10 +8,11 @@ BLIP-2 + OCR + OBJECTS Retrieval API (async indexing + embedded % + custom CSV n
 - Build index chạy nền (thread), có /api/status trả % embedded vào FAISS + ETA, /api/cancel để dừng.
 """
 import os
-# os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
-# os.environ.setdefault("OMP_NUM_THREADS", "1")
-# os.environ.setdefault("MKL_NUM_THREADS", "1")
-# os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+
 
 import threading, time
 from fastapi.staticfiles import StaticFiles
@@ -35,8 +36,11 @@ if not logger.handlers:
     _h = logging.StreamHandler(sys.stdout)
     _h.setFormatter(logging.Formatter("[%(levelname)s %(asctime)s] %(message)s", "%H:%M:%S"))
     logger.addHandler(_h)
-# Mặc định INFO; tăng DEBUG nếu muốn chi tiết hơn
-logger.setLevel(logging.INFO)
+# Cho phép đổi mức log bằng ENV: LOG_LEVEL=DEBUG/INFO/WARNING/ERROR
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logger.setLevel(getattr(logging, LOG_LEVEL, logging.INFO))
+
+
 # ---------------------------
 logger.setLevel(logging.DEBUG)
 
@@ -72,7 +76,7 @@ except Exception:
         pass
 
 try:
-    from transformers import Blip2Processor, Blip2ForConditionalGeneration
+    from transformers import Blip2Processor, Blip2ForConditionalGeneration,AutoProcessor
     _HAS_BLIP2 = True
 except Exception:
     _HAS_BLIP2 = False
@@ -89,6 +93,32 @@ def _safe_int(s, default=0):
         return int(s)
     except Exception:
         return default
+
+if _HAS_BLIP2 and _HAS_TORCH:
+    def load_blip2_safely(model_name: str, device: str):
+        use_cuda = torch.cuda.is_available() and (device == "cuda")
+        dtype = torch.float16 if use_cuda else torch.float32
+
+        # model lớn (xl/xxl/6.7b) -> cho phép accelerate chia GPU/CPU (device_map='auto')
+        needs_auto = any(s in model_name for s in ["-xl", "-xxl", "6.7b"])
+
+        kwargs = dict(dtype=dtype, low_cpu_mem_usage=True)
+        if needs_auto:
+            kwargs["device_map"] = "auto"   # KHÔNG gọi .to() sau khi load!
+        else:
+            kwargs["device_map"] = None
+
+        processor = AutoProcessor.from_pretrained(model_name)
+        model = Blip2ForConditionalGeneration.from_pretrained(model_name, **kwargs)
+
+        used_auto = bool(kwargs["device_map"] == "auto")
+        if not used_auto:
+            model = model.to("cuda" if use_cuda else "cpu")
+
+        return processor, model.eval(), used_auto
+else:
+    logger.warning("[FATAL ERROR] BLIP-2 or torch not available, BLIP-2 functions will fail.")
+    exit(1)
 
 
 import re
@@ -127,7 +157,7 @@ def _maybe_read_objects(self, objects_root: str, img_path: str) -> List[str]:
 class Blip2OCREngine:
     def __init__(
         self,
-        blip2_model: str = "Salesforce/blip2-flan-t5-xl",  # model hợp lệ
+        blip2_model: str = "Salesforce/blip2-opt-2.7b",  # model hợp lệ
         text_embed_model: str = "intfloat/multilingual-e5-base",
         device: Optional[str] = None,
         ocr_langs: Optional[List[str]] = None,
@@ -137,6 +167,9 @@ class Blip2OCREngine:
         use_objects: bool = True,
         object_topk: int = 10,
         object_weight: float = 1.3,
+        #option for language
+        caption_lang: str = "vi",
+        caption_prompt: Optional[str] = None,
         # optional
         load_blip2: bool = True,
         load_ocr: bool = True,
@@ -153,7 +186,12 @@ class Blip2OCREngine:
         if missing:
             raise RuntimeError(f"Missing deps: {', '.join(missing)}")
 
-        self.device = device or ("cuda" if _HAS_TORCH and torch.cuda.is_available() else "cpu")
+        # self.device = device or ("cuda" if _HAS_TORCH and torch.cuda.is_available() else "cpu")
+        if device in ("cpu", "cuda"):
+            self.device = device
+        else:
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
         self.index_dir = index_dir
         self.ocr_langs = ocr_langs or ["vi", "en"]
 
@@ -179,10 +217,23 @@ class Blip2OCREngine:
         self.use_objects = bool(use_objects)
         self.object_topk = int(object_topk)
         self.object_weight = float(object_weight)
+        logger.info("[ENGINE INIT] device=%s | index_dir=%s", device or "auto", index_dir)
+        logger.info("[ENGINE INIT] models: blip2=%s | text=%s | ocr=%s | use_objects=%s (topk=%d, w=%.2f)",
+            blip2_model if load_blip2 else "OFF",
+            text_embed_model,
+            ("easyocr" if (load_ocr and _HAS_EASYOCR) else ("pytesseract" if (load_ocr and _HAS_PYTESSERACT) else "OFF")),
+            bool(use_objects), int(object_topk), float(object_weight))
 
         # Text encoder (bắt buộc)
         self.text_encoder = SentenceTransformer(text_embed_model, device=self.device)
+        logger.info("[ENGINE] Text encoder loaded: %s", text_embed_model)
 
+        self.caption_lang = (caption_lang or "vi").lower()
+        _default_prompts = {
+            "vi": "Mô tả ngắn gọn bức ảnh bằng tiếng Việt, súc tích và trung lập.",
+            "en": "Briefly describe the image in English, concise and neutral."
+        }
+        self.caption_prompt = caption_prompt or _default_prompts.get(self.caption_lang, _default_prompts[self.caption_lang])
         # OCR (tuỳ chọn)
         self.reader = None
         if load_ocr and _HAS_EASYOCR:
@@ -192,11 +243,22 @@ class Blip2OCREngine:
                 self.reader = None
         elif load_ocr and _HAS_PYTESSERACT:
             self.reader = "pytesseract"  # marker để dùng pytesseract trong _ocr_text
+        if self.reader and _HAS_EASYOCR:
+            logger.info("[ENGINE] OCR: easyocr(langs=%s, gpu=%s)", self.ocr_langs, self.device.startswith("cuda"))
+        elif self.reader == "pytesseract":
+            logger.info("[ENGINE] OCR: pytesseract(vie+eng)")
+        else:
+            logger.info("[ENGINE] OCR: OFF")
 
         # BLIP-2 (tuỳ chọn)
         self.processor = None
         self.blip2 = None
         if load_blip2:
+            t0 = time.time()
+            logger.info("[ENGINE] Loading BLIP-2: %s ...", blip2_model)
+            self.processor, self.blip2, self._used_device_map_auto = load_blip2_safely(blip2_model, self.device)
+            logger.info("[ENGINE] BLIP-2 ready (device_map=%s, device=%s)", 
+            "auto" if self._used_device_map_auto else "none", self.device)
             # self.processor = Blip2Processor.from_pretrained(blip2_model, token=hf_token)
             # self.blip2 = Blip2ForConditionalGeneration.from_pretrained(
             #     blip2_model,
@@ -204,58 +266,84 @@ class Blip2OCREngine:
             #     torch_dtype=(torch.float16 if (_HAS_TORCH and torch.cuda.is_available()) else torch.float32)
             # ).to(self.device).eval()
             # Processor giữ nguyên (nhẹ, không tốn nhiều RAM)
-            self.processor = Blip2Processor.from_pretrained(blip2_model)
+            # self.processor = Blip2Processor.from_pretrained(blip2_model)
 
-            # ===== Robust loader cho BLIP-2, ưu tiên ít RAM =====
-            bnb_ok = False
+            # # ===== Robust loader cho BLIP-2, ưu tiên ít RAM =====
+            # bnb_ok = False
+            # try:
+            #     # Thử quantization nếu bitsandbytes sẵn có (tiết kiệm RAM đáng kể)
+            #     from transformers import BitsAndBytesConfig
+            #     bnb_conf = BitsAndBytesConfig(
+            #         # load_in_4bit=True,                      # thử 4-bit
+            #         bnb_4bit_use_double_quant=True,
+            #         bnb_4bit_compute_dtype=torch.float16 if self.device=="cuda" else torch.float32,
+            #     )
+            #     bnb_ok = True
+            # except Exception:
+            #     bnb_ok = False
+
+            # try:
+            #     if bnb_ok:
+            #         # 4-bit quant + auto offload
+            #         self.blip2 = Blip2ForConditionalGeneration.from_pretrained(
+            #             blip2_model,
+            #             # quantization_config=bnb_conf,
+            #             device_map="auto",           # tự chia GPU/CPU
+            #             low_cpu_mem_usage=True,
+            #         )
+            #     else:
+            #         # Không có bitsandbytes: dùng auto-offload sang disk để giảm RAM
+            #         offload_dir = os.path.join(self.index_dir, "_offload_blip2")
+            #         os.makedirs(offload_dir, exist_ok=True)
+            #         self.blip2 = Blip2ForConditionalGeneration.from_pretrained(
+            #             blip2_model,
+            #             device_map="auto",           # có GPU sẽ dùng, phần dư offload
+            #             torch_dtype=(torch.float16 if self.device=="cuda" else torch.float32),
+            #             low_cpu_mem_usage=True,      # nạp từng phần
+            #             offload_folder=offload_dir,  # thư mục offload trên đĩa
+            #         )
+            # except OSError as e:
+            #     # Bắt lỗi Windows 1455 (paging file)
+            #     msg = str(e)
+            #     if ("1455" in msg) or ("paging file" in msg.lower()):
+            #         raise RuntimeError(
+            #             "Windows error 1455: Hết Virtual Memory khi load BLIP-2. "
+            #             "Hãy tăng Pagefile (System Properties → Advanced → Performance → Settings → Advanced → "
+            #             "Virtual memory → Change → bỏ tick Automatically → Custom size → Initial/Maximum ≥ 32768 MB), "
+            #             "hoặc cài bitsandbytes để load 4-bit (pip install bitsandbytes), "
+            #             "hoặc đổi sang offload_folder ổ đĩa còn nhiều dung lượng."
+            #         )
+            #     else:
+            #         raise
+            # # ===== Hết phần robust loader =====
+            resolved_device = "cuda" if torch.cuda.is_available() and _HAS_TORCH else "cpu"
+            self.device = resolved_device
+
+            # self.blip2 = Blip2ForConditionalGeneration.from_pretrained(
+            #     blip2_model,
+            #     # token=hf_token,
+            #     # device_map="auto",
+            #     device_map=None,
+            #     low_cpu_mem_usage=True,
+            #     torch_dtype=(torch.float16 if (_HAS_TORCH and torch.cuda.is_available()) else torch.float32)
+            # ).to(self.device).eval()
+            # self.blip2 = Blip2ForConditionalGeneration.from_pretrained(
+            #     blip2_model,
+            #     token=hf_token,
+            #     dtype=(torch.float16 if resolved_device == "cuda" else torch.float32),
+            #     low_cpu_mem_usage=True,        # dùng loader tiết kiệm RAM, KHÔNG offload
+            #     device_map=None                # ép không dùng accelerate hooks/offload
+            # )
+            # self.blip2 = self.blip2.to(resolved_device).eval()
             try:
-                # Thử quantization nếu bitsandbytes sẵn có (tiết kiệm RAM đáng kể)
-                from transformers import BitsAndBytesConfig
-                bnb_conf = BitsAndBytesConfig(
-                    load_in_4bit=True,                      # thử 4-bit
-                    bnb_4bit_use_double_quant=True,
-                    bnb_4bit_compute_dtype=torch.float16 if self.device=="cuda" else torch.float32,
-                )
-                bnb_ok = True
+                import torch as _t
+                _dtype = str(next(self.blip2.parameters()).dtype).replace("torch.", "")
             except Exception:
-                bnb_ok = False
+                _dtype = "unknown"
+            logger.info("[ENGINE] BLIP-2 ready (dtype=%s, device=%s) in %.1fs", _dtype, self.device, time.time()-t0)
+        else:
+            logger.info("[ENGINE] BLIP-2: OFF")
 
-            try:
-                if bnb_ok:
-                    # 4-bit quant + auto offload
-                    self.blip2 = Blip2ForConditionalGeneration.from_pretrained(
-                        blip2_model,
-                        quantization_config=bnb_conf,
-                        device_map="auto",           # tự chia GPU/CPU
-                        low_cpu_mem_usage=True,
-                    )
-                else:
-                    # Không có bitsandbytes: dùng auto-offload sang disk để giảm RAM
-                    offload_dir = os.path.join(self.index_dir, "_offload_blip2")
-                    os.makedirs(offload_dir, exist_ok=True)
-                    self.blip2 = Blip2ForConditionalGeneration.from_pretrained(
-                        blip2_model,
-                        device_map="auto",           # có GPU sẽ dùng, phần dư offload
-                        torch_dtype=(torch.float16 if self.device=="cuda" else torch.float32),
-                        low_cpu_mem_usage=True,      # nạp từng phần
-                        offload_folder=offload_dir,  # thư mục offload trên đĩa
-                    )
-            except OSError as e:
-                # Bắt lỗi Windows 1455 (paging file)
-                msg = str(e)
-                if ("1455" in msg) or ("paging file" in msg.lower()):
-                    raise RuntimeError(
-                        "Windows error 1455: Hết Virtual Memory khi load BLIP-2. "
-                        "Hãy tăng Pagefile (System Properties → Advanced → Performance → Settings → Advanced → "
-                        "Virtual memory → Change → bỏ tick Automatically → Custom size → Initial/Maximum ≥ 32768 MB), "
-                        "hoặc cài bitsandbytes để load 4-bit (pip install bitsandbytes), "
-                        "hoặc đổi sang offload_folder ổ đĩa còn nhiều dung lượng."
-                    )
-                else:
-                    raise
-            # ===== Hết phần robust loader =====
-
-        
         self.log_every_n = int(os.getenv("LOG_EVERY_N", "100"))   # in mỗi 100 ảnh (mặc định)
         self.list_preview_n = int(os.getenv("LIST_PREVIEW_N", "20"))  # in trước 20 file đầu khi scan
 
@@ -311,26 +399,41 @@ class Blip2OCREngine:
 
     # ---------- BLIP-2 ----------
     @torch.inference_mode()
-    def _blip2_caption(self, img_path: str) -> str:
-        if (self.processor is None) or (self.blip2 is None):
-            raise RuntimeError("BLIP-2 not loaded. Initialize with load_blip2=True.")
-        from PIL import Image
-        image = Image.open(img_path).convert("RGB")
-        inputs = self.processor(images=image, return_tensors="pt").to(self.device)
-        #Nếu vẫn nặng, giảm tiếp max_new_tokens xuống 16.
-        gen_cfg = dict(
-            max_new_tokens=25,   # ngắn gọn để nhanh
-            num_beams=3,         # beam nhỏ cho tốc độ
-            do_sample=False
-        )
-        with torch.inference_mode():
-            if self.device == "cuda":
-                with torch.cuda.amp.autocast():
-                    out = self.blip2.generate(**inputs, **gen_cfg)
+    def _blip2_caption(self, img, max_new_tokens: int = 40) -> str:
+        """
+        img có thể là path, PIL.Image hoặc np.ndarray
+        Trả về caption (str). Thất bại -> "".
+        """
+        try:
+            import numpy as np
+            from PIL import Image as PILImage
+
+            # Chuẩn hóa ảnh
+            if isinstance(img, str):
+                pil = PILImage.open(img).convert("RGB")
+            elif isinstance(img, PILImage.Image):
+                pil = img.convert("RGB")
+            elif isinstance(img, np.ndarray):
+                pil = PILImage.fromarray(img)
             else:
-                out = self.blip2.generate(**inputs, **gen_cfg)
-        text = self.processor.batch_decode(out, skip_special_tokens=True)[0].strip()
-        return text
+                raise TypeError(f"Unsupported image type: {type(img)}")
+
+            # ⚠️ QUAN TRỌNG: ép về NumPy trước khi đưa vào processor để tránh .read()
+            arr = np.asarray(pil)
+
+            inputs = self.processor(images=arr, text="", return_tensors="pt")
+            # đẩy tensor lên đúng device nếu có .to
+            for k, v in list(inputs.items()):
+                if hasattr(v, "to"):
+                    inputs[k] = v.to(self.device)
+
+            out_ids = self.blip2.generate(**inputs, max_new_tokens=max_new_tokens)
+            cap = self.processor.batch_decode(out_ids, skip_special_tokens=True)[0].strip()
+            return cap
+        except Exception as e:
+            logger.debug("[BLIP-2 CAPTION ERROR] Caption error on %s: %s", getattr(self, "current_path", "?"), e)
+            return ""
+
 
 
     @torch.inference_mode()
@@ -439,7 +542,10 @@ class Blip2OCREngine:
         # reset meta/ids
         self.meta, self.ids = [], []
 
-        logger.info(f"[BUILD] Streaming index with BLIP-2 + OCR | total={self.total_images} | dim={dim}")
+        # logger.info(f"[BUILD] Streaming index with BLIP-2 + OCR | total={self.total_images} | dim={dim}")
+        logger.info("[BUILD] Start indexing with BLIP-2 + OCR | total=%d | dim=%d | batch=%d | use_objects=%s(topk=%d, w=%.2f)",
+            self.total_images, dim, batch_size, self.use_objects, self.object_topk, self.object_weight)
+
 
         def extract_video_and_frame(path: str):
             p = os.path.normpath(path)
@@ -482,17 +588,24 @@ class Blip2OCREngine:
                 self.current_path = p
             if (idx % log_every) == 0:
                 logger.info("[Build %d/%d] %s", idx + 1, self.total_images, p)
-
+            img = None
+            try:
+                img = Image.open(p).convert("RGB")
+            except Exception as e:
+                logger.debug("[BUILD INDEX STREAM ERROR]Open image error on %s: %s", p, e)
+            
             # 1) Caption & OCR & Objects
             try:
-                cap = self._blip2_caption(p) or ""
+                # cap = self._blip2_caption(img) or ""
+                cap = self._blip2_caption(img if img is not None else p, max_new_tokens=40) or ""
             except Exception as e:
-                logger.debug("Caption error on %s: %s", p, e)
+                logger.debug("[BUILD INDEX STREAM ERROR]Caption error on %s: %s", p, e)
                 cap = ""
             try:
-                ocr = self._ocr_text(p) or ""
-            except Exception as e:
-                logger.debug("OCR error on %s: %s", p, e)
+                # ocr = self._ocr_text(img) or ""
+                ocr = self._ocr_text(img) if img is not None else ""
+            except Exception as e: 
+                logger.debug("[BUILD INDEX STREAM ERROR]OCR error on %s: %s", p, e)
                 ocr = ""
             objs = read_objects(p)
             obj_text = ", ".join(objs) if objs else ""
@@ -504,14 +617,25 @@ class Blip2OCREngine:
                 main_text = cap or ocr
 
             # 3) Nhúng văn bản (E5) + fuse objects có trọng số
-            main_emb = self.text_encoder.encode([main_text], normalize_embeddings=True, convert_to_numpy=True).astype("float32")
+            # main_emb = self.text_encoder.encode([main_text], normalize_embeddings=True, convert_to_numpy=True).astype("float32")
+            txt = main_text if main_text.strip() else " "
+            main_emb = self._embed_texts([txt])
+
+            if main_emb is None or getattr(main_emb, "shape", (0,0))[0] == 0:
+                logger.warning("[EMB FALLBACK] empty embedding for %s -> single-space", p)
+                main_emb = self._embed_texts([" "])
+
+            vec = main_emb[0]
+            
             if obj_text:
-                obj_emb = self.text_encoder.encode([obj_text], normalize_embeddings=True, convert_to_numpy=True).astype("float32")
+                # obj_emb = self.text_encoder.encode([obj_text], normalize_embeddings=True, convert_to_numpy=True).astype("float32")
+                obj = obj_text if obj_text.strip() else " "
+                obj_emb = self._embed_texts([obj])
                 fused = main_emb + float(getattr(self, "object_weight", 1.3)) * obj_emb
                 fused = fused / (np.linalg.norm(fused, axis=1, keepdims=True) + 1e-12)
                 vec = fused[0]
-            else:
-                vec = main_emb[0]  # đã normalize
+            # else:
+            #     vec = main_emb[0]  # đã normalize
 
             # 4) Add vào FAISS ngay (streaming)
             self.faiss_index.add(vec.reshape(1, -1))
@@ -553,16 +677,32 @@ class Blip2OCREngine:
                     self.embedded_images, self.total_images, pct, elapsed)
 
 
+    # def load_index(self) -> Dict[str, Any]:
+    #     idx_path = os.path.join(self.index_dir, "faiss.index")
+    #     meta_path = os.path.join(self.index_dir, "meta.json")
+    #     if not (os.path.exists(idx_path) and os.path.exists(meta_path)):
+    #         raise RuntimeError(f"Index not found in {self.index_dir}. Build index first.")
+    #     self.faiss_index = faiss.read_index(idx_path)
+    #     with open(meta_path, "r", encoding="utf-8") as f:
+    #         self.meta = json.load(f)
+    #     self.ids = [m["path"] for m in self.meta]
+    #     return {"num_images": len(self.meta), "index_dir": self.index_dir}
     def load_index(self) -> Dict[str, Any]:
         idx_path = os.path.join(self.index_dir, "faiss.index")
         meta_path = os.path.join(self.index_dir, "meta.json")
+        logger.info("[LOAD] index_dir=%s\n        faiss=%s\n        meta=%s", self.index_dir, idx_path, meta_path)
         if not (os.path.exists(idx_path) and os.path.exists(meta_path)):
             raise RuntimeError(f"Index not found in {self.index_dir}. Build index first.")
         self.faiss_index = faiss.read_index(idx_path)
         with open(meta_path, "r", encoding="utf-8") as f:
             self.meta = json.load(f)
         self.ids = [m["path"] for m in self.meta]
+        ntotal = int(self.faiss_index.ntotal)
+        logger.info("[LOAD DONE] num_images(meta)=%d | faiss.ntotal=%d", len(self.meta), ntotal)
+        if ntotal != len(self.meta):
+            logger.warning("[LOAD WARN] ntotal != meta size (FAISS=%d vs META=%d)", ntotal, len(self.meta))
         return {"num_images": len(self.meta), "index_dir": self.index_dir}
+
 
     # ---------- Search primitives ----------
     def _search(self, query: str, topk: int = 50, restrict_video: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -801,19 +941,46 @@ class SearchBody(BaseModel):
     query: str
     topk: int = 10
 
+# @app.post("/api/initialize")
+# def initialize(body: InitBody):
+#     global engine
+#     engine = Blip2OCREngine(
+#         blip2_model=body.blip2_model,
+#         text_embed_model=body.text_embed_model,
+#         index_dir=body.index_dir,
+#         objects_root=body.objects_root,
+#         use_objects=body.use_objects,
+#         object_topk=body.object_topk,
+#         object_weight=body.object_weight
+#     )
+#     return {"status": "ok", "device": engine.device, "index_dir": body.index_dir}
 @app.post("/api/initialize")
 def initialize(body: InitBody):
     global engine
-    engine = Blip2OCREngine(
-        blip2_model=body.blip2_model,
-        text_embed_model=body.text_embed_model,
-        index_dir=body.index_dir,
-        objects_root=body.objects_root,
-        use_objects=body.use_objects,
-        object_topk=body.object_topk,
-        object_weight=body.object_weight
-    )
-    return {"status": "ok", "device": engine.device, "index_dir": body.index_dir}
+    logger.info("[INIT] blip2=%s | text=%s | index_dir=%s | use_objects=%s(topk=%d, w=%.2f)",
+                body.blip2_model, body.text_embed_model, body.index_dir,
+                body.use_objects, body.object_topk, body.object_weight)
+    t0 = time.time()
+    try:
+        engine = Blip2OCREngine(
+            blip2_model=body.blip2_model,
+            text_embed_model=body.text_embed_model,
+            index_dir=body.index_dir,
+            objects_root=body.objects_root,
+            use_objects=body.use_objects,
+            object_topk=body.object_topk,
+            object_weight=body.object_weight
+        )
+        logger.info("[INIT DONE] device=%s in %.1fs", engine.device, time.time()-t0)
+        return {"status": "ok", "device": engine.device, "index_dir": body.index_dir}
+    except Exception as e:
+        logger.exception("[INIT ERROR] %s", e)
+        # trả 500 có message thay vì stacktrace thô
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=f"Initialize failed: {e}")
+    
+
+
 
 @app.post("/api/load_index")
 def load_index(
@@ -833,6 +1000,7 @@ def load_index(
     # Ưu tiên đường dẫn tuyệt đối do bạn nhập ở UI
     if faiss_path:
         try:
+            logger.info("[LOAD REQ] faiss_path=%s | metadata_path=%s | index_dir=%s", faiss_path, metadata_path, index_dir)
             out = engine.load_external_index(faiss_path=faiss_path, metadata_path=metadata_path)
             return {"status": "loaded_external", **out}
         except Exception as e:
@@ -858,6 +1026,9 @@ _build_thread = None  # đặt ở mức module nếu chưa có
 
 @app.post("/api/build_index")
 def build_index(body: InitBody):
+    logger.info("[BUILD REQ] frames_root=%s | batch=%s | save_npy=%s",
+            body.frames_root, body.batch_size, body.save_embeddings_npy)
+
     global engine, _build_thread
 
     # Build cần BLIP-2 đã khởi tạo
@@ -909,6 +1080,7 @@ def build_index(body: InitBody):
                 save_embeddings_npy=bool(body.save_embeddings_npy),
             )
         except Exception as e:
+            logger.exception("[BUILD ERROR] %s", e)
             with engine._lock:
                 engine.build_error = str(e)
             # đảm bảo hạ cờ nếu lỗi xảy ra sớm
@@ -919,6 +1091,7 @@ def build_index(body: InitBody):
     _build_thread = threading.Thread(target=_runner, daemon=True)
     _build_thread.start()
 
+    logger.info("[BUILD STARTED] total=%d | index_dir=%s", engine.total_images, engine.index_dir)
     # lúc này building đã True → client sẽ thấy đúng
     return {"status": "started", **engine.status()}
 
@@ -935,17 +1108,18 @@ def cancel_build():
     engine.cancel()
     return {"status": "cancelling", **engine.status()}
 
-@app.post("/api/load_index")
-def load_index(index_dir: str = Form("index_blip2_ocr")):
-    global engine
-    if engine is None:
-        engine = Blip2OCREngine(index_dir=index_dir)
-    engine.index_dir = index_dir
-    out = engine.load_index()
-    return out
+# @app.post("/api/load_index")
+# def load_index(index_dir: str = Form("index_blip2_ocr")):
+#     global engine
+#     if engine is None:
+#         engine = Blip2OCREngine(index_dir=index_dir)
+#     engine.index_dir = index_dir
+#     out = engine.load_index()
+#     return out
 
 @app.post("/api/kis")
 def search_kis(body: SearchBody):
+    logger.info("[KIS] q=%s | topk=%d", body.query, body.topk)
     if engine is None:
         return JSONResponse({"error": "engine not initialized"}, status_code=400)
     res = engine.textual_kis(body.query, topk=body.topk)
@@ -953,6 +1127,7 @@ def search_kis(body: SearchBody):
 
 @app.post("/api/qa")
 def search_qa(body: SearchBody):
+    logger.info("[QA] q=%s | topk=%d", body.query, body.topk)
     if engine is None:
         return JSONResponse({"error": "engine not initialized"}, status_code=400)
     out = engine.qa(body.query, topk=body.topk)
@@ -960,6 +1135,7 @@ def search_qa(body: SearchBody):
 
 @app.post("/api/trake")
 def search_trake(body: SearchBody):
+    logger.info("[TRAKE] q=%s | topk=%d", body.query, body.topk)
     if engine is None:
         return JSONResponse({"error": "engine not initialized"}, status_code=400)
     out = engine.trake(body.query, topk=body.topk)
