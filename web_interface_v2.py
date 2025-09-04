@@ -174,6 +174,7 @@ class Blip2OCREngine:
         load_blip2: bool = True,
         load_ocr: bool = True,
         hf_token: Optional[str] = None,
+        text_batch_size: int = 512,
     ):
         # deps tối thiểu cho search
         missing = []
@@ -210,13 +211,15 @@ class Blip2OCREngine:
         self.cancel_flag = False
         self.building = False
         self.build_error: Optional[str] = None
+        self.text_batch_size = int(text_batch_size or 512)
+        
         # ============================================
 
         # Objects
         self.objects_root = objects_root
         self.use_objects = bool(use_objects)
         self.object_topk = int(object_topk)
-        self.object_weight = float(object_weight)
+        self.object_weight = float(object_weight if object_weight is not None else 1.3)
         logger.info("[ENGINE INIT] device=%s | index_dir=%s", device or "auto", index_dir)
         logger.info("[ENGINE INIT] models: blip2=%s | text=%s | ocr=%s | use_objects=%s (topk=%d, w=%.2f)",
             blip2_model if load_blip2 else "OFF",
@@ -489,21 +492,78 @@ class Blip2OCREngine:
         return text, names
 
     # ---------- Embedding ----------
-    def _embed_texts(self, texts: List[str]) -> np.ndarray:
-        texts_proc = [f"passage: {t}" for t in texts]
+    # def _embed_texts(self, texts: List[str]) -> np.ndarray:
+    #     texts_proc = [f"passage: {t}" for t in texts]
+    #     embs = self.text_encoder.encode(
+    #         texts_proc,
+    #         batch_size=self.text_batch_size,
+    #         show_progress_bar=False,
+    #         convert_to_numpy=True,
+    #         normalize_embeddings=True
+    #     )
+    #     return embs.astype("float32")
+    def _safe_caption(self, pil_img, path):
+        try:
+            return (self._blip2_caption(pil_img) or "").strip()
+        except TypeError:
+            try:
+                return (self._blip2_caption(path) or "").strip()
+            except Exception:
+                logger.debug("[BLIP-2 CAPTION ERROR, _safe_caption] Caption error on %s: TypeError fallback also failed", path)
+                return ""
+        except Exception as e:
+            logger.debug("[BLIP-2 CAPTION ERROR, _safe_caption] Caption error on %s: %s", path, e)
+            return ""
+
+    def _safe_ocr(self, pil_img):
+        try:
+            txt = self._ocr_text(pil_img)
+            return (txt or "").strip()
+        except Exception as e:
+            logger.debug("[OCR ERROR, _safe_ocr] OCR error on %s as exception %s", getattr(self, "current_path", "?"), e)
+            return ""
+
+    def _make_main_texts(self, captions, ocrs):
+        out = []
+        for cap, ocr in zip(captions, ocrs):
+            # if cap and ocr:
+            #     out.append(f"{cap} [SEP] {ocr}")
+            # else:
+            #     out.append(cap or ocr or "")
+            appended = ""
+            if cap and ocr:
+                appended = f"{cap} [SEP] {ocr}"
+            else:
+                appended = cap or ocr or ""
+            out.append(appended)
+            logger.debug("[_make_main_text]Caption: %s | OCR: %s => Main text: %s", cap, ocr, appended)
+        return out
+
+    def _embed_texts(self, texts):
+        if not texts:
+            dim = self.text_encoder.get_sentence_embedding_dimension()
+            return np.zeros((0, dim), dtype="float32")
+        prefixed = [f"passage: {t}" for t in texts]   # đúng chuẩn E5
         embs = self.text_encoder.encode(
-            texts_proc,
-            batch_size=32,
+            prefixed,
+            batch_size=self.text_batch_size,          # dùng batch lớn
             show_progress_bar=False,
             convert_to_numpy=True,
-            normalize_embeddings=True
-        )
-        return embs.astype("float32")
+            normalize_embeddings=True,                # chuẩn hoá cho cosine
+        ).astype("float32")
+        return embs
+
+    def _fuse_main_and_obj(self, main_emb, obj_emb=None):
+        if obj_emb is None:
+            return main_emb
+        w = float(self.object_weight)
+        fused = main_emb + (w * obj_emb)
+        norms = np.linalg.norm(fused, axis=1, keepdims=True) + 1e-12
+        return (fused / norms).astype("float32")      # L2-normalize sau khi cộng
 
     def _embed_query(self, query: str) -> np.ndarray:
         emb = self.text_encoder.encode([f"query: {query}"], convert_to_numpy=True, normalize_embeddings=True)
         return emb.astype("float32")
-
     # ---------- Build/Load ----------
     def build_index_stream(self, frames_root: str, batch_size: int = 32, save_embeddings_npy: bool = False):
         import json, time, numpy as np, faiss, os, re
@@ -542,10 +602,9 @@ class Blip2OCREngine:
         # reset meta/ids
         self.meta, self.ids = [], []
 
-        # logger.info(f"[BUILD] Streaming index with BLIP-2 + OCR | total={self.total_images} | dim={dim}")
         logger.info("[BUILD] Start indexing with BLIP-2 + OCR | total=%d | dim=%d | batch=%d | use_objects=%s(topk=%d, w=%.2f)",
-            self.total_images, dim, batch_size, self.use_objects, self.object_topk, self.object_weight)
-
+            self.total_images, dim, batch_size, getattr(self, "use_objects", False),
+            int(getattr(self, "object_topk", 10)), float(getattr(self, "object_weight", 1.3)))
 
         def extract_video_and_frame(path: str):
             p = os.path.normpath(path)
@@ -579,83 +638,123 @@ class Blip2OCREngine:
                 return []
 
         log_every = max(1, int(getattr(self, "log_every_n", 100)))
-        for idx, p in enumerate(files):
+
+        # ===== Vòng lặp THEO LÔ ẢNH =====
+        for start in range(0, len(files), batch_size):
             if self.cancel_flag:
                 logger.warning("Cancel flag detected. Stopping build loop.")
                 break
 
-            with self._lock:
-                self.current_path = p
-            if (idx % log_every) == 0:
-                logger.info("[Build %d/%d] %s", idx + 1, self.total_images, p)
-            img = None
-            try:
-                img = Image.open(p).convert("RGB")
-            except Exception as e:
-                logger.debug("[BUILD INDEX STREAM ERROR]Open image error on %s: %s", p, e)
-            
-            # 1) Caption & OCR & Objects
-            try:
-                # cap = self._blip2_caption(img) or ""
-                cap = self._blip2_caption(img if img is not None else p, max_new_tokens=40) or ""
-            except Exception as e:
-                logger.debug("[BUILD INDEX STREAM ERROR]Caption error on %s: %s", p, e)
-                cap = ""
-            try:
-                # ocr = self._ocr_text(img) or ""
-                ocr = self._ocr_text(img) if img is not None else ""
-            except Exception as e: 
-                logger.debug("[BUILD INDEX STREAM ERROR]OCR error on %s: %s", p, e)
-                ocr = ""
-            objs = read_objects(p)
-            obj_text = ", ".join(objs) if objs else ""
+            batch_paths = files[start:start + batch_size]
 
-            # 2) Hợp văn bản chính
-            if cap and ocr:
-                main_text = f"{cap} [SEP] {ocr}"
-            else:
-                main_text = cap or ocr
+            captions, ocrs, obj_texts = [], [], []
+            videos, frames = [], []
+            opened_imgs = []
 
-            # 3) Nhúng văn bản (E5) + fuse objects có trọng số
-            # main_emb = self.text_encoder.encode([main_text], normalize_embeddings=True, convert_to_numpy=True).astype("float32")
-            txt = main_text if main_text.strip() else " "
-            main_emb = self._embed_texts([txt])
+            # ---- B1: Đọc & trích xuất từng ảnh (caption/ocr/objects) ----
+            for bi, p in enumerate(batch_paths):
+                gi = start + bi  # global index
+                with self._lock:
+                    self.current_path = p
+                if (gi % log_every) == 0:
+                    logger.info("[Build %d/%d] %s", gi + 1, self.total_images, p)
 
-            if main_emb is None or getattr(main_emb, "shape", (0,0))[0] == 0:
-                logger.warning("[EMB FALLBACK] empty embedding for %s -> single-space", p)
-                main_emb = self._embed_texts([" "])
+                img = None
+                try:
+                    img = Image.open(p).convert("RGB")
+                except Exception as e:
+                    logger.debug("[BUILD INDEX STREAM ERROR]Open image error on %s: %s", p, e)
 
-            vec = main_emb[0]
-            
-            if obj_text:
-                # obj_emb = self.text_encoder.encode([obj_text], normalize_embeddings=True, convert_to_numpy=True).astype("float32")
-                obj = obj_text if obj_text.strip() else " "
-                obj_emb = self._embed_texts([obj])
-                fused = main_emb + float(getattr(self, "object_weight", 1.3)) * obj_emb
+                # Caption
+                try:
+                    cap = self._blip2_caption(img if img is not None else p, max_new_tokens=40) or ""
+                except Exception as e:
+                    logger.debug("[BUILD INDEX STREAM ERROR]Caption error on %s: %s", p, e)
+                    cap = ""
+
+                # OCR
+                try:
+                    ocr = self._ocr_text(img) if img is not None else ""
+                except Exception as e:
+                    logger.debug("[BUILD INDEX STREAM ERROR]OCR error on %s: %s", p, e)
+                    ocr = ""
+
+                # Objects
+                objs = read_objects(p)
+                obj_text = ", ".join(objs) if objs else ""
+
+                # Lưu lại
+                captions.append(cap.strip())
+                ocrs.append(ocr.strip())
+                obj_texts.append(obj_text.strip())
+                v, fr = extract_video_and_frame(p)
+                videos.append(v)
+                frames.append(fr)
+                opened_imgs.append(img)  # giữ tham chiếu để GC sau batch
+
+            # ---- B2: Ghép main_texts theo embed_dir.py ----
+            main_texts = []
+            for cap, ocr in zip(captions, ocrs):
+                if cap and ocr:
+                    main_texts.append(f"{cap} [SEP] {ocr}")
+                else:
+                    main_texts.append((cap or ocr or "").strip())
+
+            # Đảm bảo không có chuỗi rỗng (tránh edge-case encoder)
+            main_texts = [t if t.strip() else " " for t in main_texts]
+
+            # ---- B3: Encode THEO LÔ LỚN cho main_texts ----
+            main_emb = self._embed_texts(main_texts)  # (B, d) float32, normalized
+
+            # Nếu vì lý do gì đó trả về rỗng: fallback encode toàn batch bằng " "
+            if main_emb is None or getattr(main_emb, "shape", (0, 0))[0] == 0:
+                logger.warning("[EMB FALLBACK] empty batch embeddings -> re-encode blanks")
+                main_emb = self._embed_texts([" "] * len(batch_paths))
+
+            # ---- B4: Encode objects nếu có VÀ fuse + L2-normalize ----
+            fused = main_emb
+            if any(len(t) > 0 for t in obj_texts):
+                obj_texts_safe = [t if t.strip() else " " for t in obj_texts]
+                obj_emb = self._embed_texts(obj_texts_safe)  # normalized
+                w = float(getattr(self, "object_weight", 1.3))
+                fused = main_emb + (w * obj_emb)
                 fused = fused / (np.linalg.norm(fused, axis=1, keepdims=True) + 1e-12)
-                vec = fused[0]
-            # else:
-            #     vec = main_emb[0]  # đã normalize
+                fused = fused.astype("float32")
 
-            # 4) Add vào FAISS ngay (streaming)
-            self.faiss_index.add(vec.reshape(1, -1))
+            # ---- B5: Add cả LÔ vào FAISS + ghi memmap (nếu bật) ----
+            self.faiss_index.add(fused)
             if mmap is not None:
-                mmap[idx, :] = vec
+                mmap[start:start + fused.shape[0], :] = fused
 
-            # 5) Cập nhật tiến độ & meta
-            v, fr = extract_video_and_frame(p)
-            self.meta.append({
-                "path": p, "video": v, "frame": int(fr),
-                "caption": cap, "ocr": ocr,
-                "objects": objs
-            })
-            self.ids.append(p)
+            # ---- B6: Cập nhật meta/ids & tiến độ ----
+            for bi, p in enumerate(batch_paths):
+                self.meta.append({
+                    "path": p,
+                    "video": videos[bi],
+                    "frame": int(frames[bi]),
+                    "caption": captions[bi],
+                    "ocr": ocrs[bi],
+                    "objects": [s.strip() for s in obj_texts[bi].split(",")] if obj_texts[bi] else []
+                })
+                self.ids.append(p)
 
             with self._lock:
-                self.embedded_images += 1
-                self.processed_images += 1
+                self.embedded_images += fused.shape[0]
+                self.processed_images += len(batch_paths)
 
-        # 6) Lưu index + meta
+            # Giải phóng ảnh đã mở
+            for img in opened_imgs:
+                try:
+                    if hasattr(img, "close"):
+                        img.close()
+                except Exception:
+                    pass
+
+            if self.cancel_flag:
+                logger.warning("Cancel flag detected after batch; breaking.")
+                break
+
+        # ---- B7: Lưu index + meta ----
         try:
             faiss.write_index(self.faiss_index, os.path.join(self.index_dir, "faiss.index"))
             with open(os.path.join(self.index_dir, "meta.json"), "w", encoding="utf-8") as f:
@@ -675,6 +774,7 @@ class Blip2OCREngine:
             self.building = False
         logger.info("[BUILD DONE] embedded=%d / total=%d (%.2f%%) in %.1fs",
                     self.embedded_images, self.total_images, pct, elapsed)
+
 
 
     # def load_index(self) -> Dict[str, Any]:
@@ -936,6 +1036,7 @@ class InitBody(BaseModel):
     # Build options
     batch_size: int = 32
     save_embeddings_npy: bool = False
+    text_batch_size: int = 512
 
 class SearchBody(BaseModel):
     query: str
@@ -1024,14 +1125,83 @@ def load_index(
 
 _build_thread = None  # đặt ở mức module nếu chưa có
 
+# @app.post("/api/build_index")
+# def build_index(body: InitBody):
+#     logger.info("[BUILD REQ] frames_root=%s | batch=%s | save_npy=%s",
+#             body.frames_root, body.batch_size, body.save_embeddings_npy)
+
+#     global engine, _build_thread
+
+#     # Build cần BLIP-2 đã khởi tạo
+#     if engine is None:
+#         engine = Blip2OCREngine(
+#             blip2_model=body.blip2_model,
+#             text_embed_model=body.text_embed_model,
+#             index_dir=body.index_dir,
+#             objects_root=body.objects_root,
+#             use_objects=body.use_objects,
+#             object_topk=body.object_topk,
+#             object_weight=body.object_weight,
+#         )
+
+#     # Dọn thread cũ (nếu đã kết thúc)
+#     if _build_thread and not _build_thread.is_alive():
+#         _build_thread = None
+#         engine.building = False
+
+#     # Đang build thật sự?
+#     if engine.building or (_build_thread and _build_thread.is_alive()):
+#         return {"status": "already_building", **engine.status()}
+
+#     # Validate frames_root
+#     if not os.path.isdir(body.frames_root):
+#         raise HTTPException(status_code=400, detail=f"frames_root không tồn tại: {body.frames_root}")
+
+#     files = engine._gather_frames(body.frames_root)
+#     if len(files) == 0:
+#         raise HTTPException(status_code=400, detail="Không tìm thấy ảnh (.jpg/.jpeg/.png/.bmp) trong frames_root")
+
+#     # ===== BẬT CỜ & SET COUNTERS TRƯỚC KHI START THREAD =====
+#     with engine._lock:
+#         engine.building = True
+#         engine.build_error = None
+#         engine.cancel_flag = False
+#         engine.current_path = ""
+#         engine.start_time = time.time()
+#         engine.total_images = len(files)
+#         engine.processed_images = 0
+#         engine.embedded_images = 0
+#     # =========================================================
+
+#     def _runner():
+#         try:
+#             engine.build_index_stream(
+#                 frames_root=body.frames_root,
+#                 batch_size=int(body.batch_size),
+#                 save_embeddings_npy=bool(body.save_embeddings_npy),
+#             )
+#         except Exception as e:
+#             logger.exception("[BUILD ERROR] %s", e)
+#             with engine._lock:
+#                 engine.build_error = str(e)
+#             # đảm bảo hạ cờ nếu lỗi xảy ra sớm
+#             with engine._lock:
+#                 engine.building = False
+#                 engine.current_path = ""
+
+#     _build_thread = threading.Thread(target=_runner, daemon=True)
+#     _build_thread.start()
+
+#     logger.info("[BUILD STARTED] total=%d | index_dir=%s", engine.total_images, engine.index_dir)
+#     # lúc này building đã True → client sẽ thấy đúng
+#     return {"status": "started", **engine.status()}
 @app.post("/api/build_index")
 def build_index(body: InitBody):
-    logger.info("[BUILD REQ] frames_root=%s | batch=%s | save_npy=%s",
-            body.frames_root, body.batch_size, body.save_embeddings_npy)
+    logger.info("[BUILD REQ] frames_root=%s | batch=%s | text_batch=%s | save_npy=%s",
+                body.frames_root, body.batch_size, getattr(body, "text_batch_size", None), body.save_embeddings_npy)
 
     global engine, _build_thread
 
-    # Build cần BLIP-2 đã khởi tạo
     if engine is None:
         engine = Blip2OCREngine(
             blip2_model=body.blip2_model,
@@ -1042,17 +1212,37 @@ def build_index(body: InitBody):
             object_topk=body.object_topk,
             object_weight=body.object_weight,
         )
+        # Nếu __init__ không nhận text_batch_size, gán trực tiếp:
+        if hasattr(body, "text_batch_size") and body.text_batch_size:
+            engine.text_batch_size = int(body.text_batch_size)
+    else:
+        # (TÙY CHỌN) recreate nếu model đổi
+        # need_recreate = ...
+        # if need_recreate: engine = Blip2OCREngine(...)
 
-    # Dọn thread cũ (nếu đã kết thúc)
+        # Cập nhật cấu hình động
+        if body.index_dir and body.index_dir != engine.index_dir:
+            engine.index_dir = body.index_dir
+            engine.faiss_index = None
+            engine.meta, engine.ids = [], []
+        if hasattr(body, "objects_root") and body.objects_root:
+            engine.objects_root = body.objects_root
+        if hasattr(body, "use_objects"):
+            engine.use_objects = bool(body.use_objects)
+        if hasattr(body, "object_topk") and body.object_topk is not None:
+            engine.object_topk = int(body.object_topk)
+        if hasattr(body, "object_weight") and body.object_weight is not None:
+            engine.object_weight = float(body.object_weight)
+        if hasattr(body, "text_batch_size") and body.text_batch_size:
+            engine.text_batch_size = int(body.text_batch_size)
+
     if _build_thread and not _build_thread.is_alive():
         _build_thread = None
         engine.building = False
 
-    # Đang build thật sự?
     if engine.building or (_build_thread and _build_thread.is_alive()):
         return {"status": "already_building", **engine.status()}
 
-    # Validate frames_root
     if not os.path.isdir(body.frames_root):
         raise HTTPException(status_code=400, detail=f"frames_root không tồn tại: {body.frames_root}")
 
@@ -1060,7 +1250,6 @@ def build_index(body: InitBody):
     if len(files) == 0:
         raise HTTPException(status_code=400, detail="Không tìm thấy ảnh (.jpg/.jpeg/.png/.bmp) trong frames_root")
 
-    # ===== BẬT CỜ & SET COUNTERS TRƯỚC KHI START THREAD =====
     with engine._lock:
         engine.building = True
         engine.build_error = None
@@ -1070,7 +1259,6 @@ def build_index(body: InitBody):
         engine.total_images = len(files)
         engine.processed_images = 0
         engine.embedded_images = 0
-    # =========================================================
 
     def _runner():
         try:
@@ -1083,8 +1271,6 @@ def build_index(body: InitBody):
             logger.exception("[BUILD ERROR] %s", e)
             with engine._lock:
                 engine.build_error = str(e)
-            # đảm bảo hạ cờ nếu lỗi xảy ra sớm
-            with engine._lock:
                 engine.building = False
                 engine.current_path = ""
 
@@ -1092,7 +1278,6 @@ def build_index(body: InitBody):
     _build_thread.start()
 
     logger.info("[BUILD STARTED] total=%d | index_dir=%s", engine.total_images, engine.index_dir)
-    # lúc này building đã True → client sẽ thấy đúng
     return {"status": "started", **engine.status()}
 
 @app.get("/api/status")
