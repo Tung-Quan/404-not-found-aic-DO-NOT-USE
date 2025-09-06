@@ -21,6 +21,36 @@ Khi đã khởi động được hệ thống hãy bắt đầu với việc "In
 }
 ```
 Hãy thay đổi các thành phần tương ứng đúng với phần tương ứng. 
+# DÀNH RIÊNG CHO MACOS
+```powershell
+
+# 1) tạo & kích hoạt venv
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 2) cập nhật công cụ pip
+python -m pip install -U pip wheel setuptools
+
+# 3) cài deps trong requirements.txt (bạn đã có sẵn file này)
+pip install -r requirements.txt
+
+# 4) cài PyTorch phù hợp macOS
+# (Trên macOS, pip mặc định sẽ cài bản hỗ trợ Metal/MPS cho Apple Silicon nếu máy là arm64)
+pip install --upgrade torch torchvision torchaudio
+
+# 5) (tuỳ chọn) nếu dùng pytesseract thay vì EasyOCR:
+# cài Tesseract binary qua Homebrew
+# nếu chưa có brew: https://brew.sh
+brew install tesseract
+
+# 6) chạy script kiểm tra
+python check_macos.py
+
+# 6b) (tuỳ chọn) test tải & generate BLIP-2 (nặng, mất thời gian):
+export BLIP2_CHECK=1
+# export BLIP2_MODEL="Salesforce/blip2-opt-2.7b"  # nếu muốn đổi model
+python check_macos.py
+```
 
 ## Embed các frames ở file riêng
 ```powershell

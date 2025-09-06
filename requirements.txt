@@ -1,0 +1,27 @@
+# Web API
+fastapi==0.114.2
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+python-multipart>=0.0.9  # bắt buộc để nhận Form/UploadFile
+
+# Core numeric / image
+numpy>=1.24,<3
+pillow>=10.0.0
+opencv-python-headless>=4.9.0  # easyocr phụ thuộc, dùng bản headless cho server
+
+# Embedding + BLIP-2
+transformers>=4.41
+sentence-transformers>=2.7
+huggingface-hub>=0.23
+safetensors>=0.4.2
+accelerate>=0.28  # khuyến nghị cho model lớn (BLIP-2)
+
+# FAISS (CPU)
+faiss-cpu>=1.8.0
+
+# OCR (chọn 1 trong 2 – bạn có thể cài cả hai cũng được)
+easyocr>=1.7.1           # dùng GPU nếu torch GPU cài sẵn
+pytesseract>=0.3.10      # cần cài thêm binary Tesseract ngoài pip (xem ghi chú)
+
+# Tiện ích nhỏ
+tqdm>=4.66
