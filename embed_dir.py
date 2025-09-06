@@ -270,7 +270,7 @@ def main():
     p.add_argument("path", help="File or directory to scan for images")
     p.add_argument("--index-dir", default="index_blip2_ocr")
     p.add_argument("--objects-root", default="objects")
-    p.add_argument("--blip2-model", default="Salesforce/blip2-flan-t5-xl")
+    p.add_argument("--blip2-model", default="Salesforce/blip2-opt-2.7b")
     p.add_argument("--text-model", default="intfloat/multilingual-e5-base")
     p.add_argument("--object-weight", type=float, default=1.3, help="Weight for object labels when fusing embeddings (0 disables objects influence).")
     p.add_argument("--flush-every", type=int, default=1000, help="Flush FAISS/meta to disk every N embeddings.")
